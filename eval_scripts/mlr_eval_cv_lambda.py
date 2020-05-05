@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-from mlr_kgenomvir.build_cv_data import build_load_save_cv_data
-from mlr_kgenomvir.model_evaluation import perform_sk_mlr_cv
+from mlr_kgenomvir.data.build_cv_data import build_load_save_cv_data
+from mlr_kgenomvir.models.model_evaluation import perform_sk_mlr_cv
 from mlr_kgenomvir.utils import compile_score_names
 from mlr_kgenomvir.utils import make_clf_score_dataframes
 from mlr_kgenomvir.utils import plot_cv_figure

@@ -1,7 +1,7 @@
 from .seq_collections import SeqCollection
 from .kmer_collections import GivenKmersCollection
 from .kmer_collections import build_kmers_Xy_data, build_kmers
-from .utils import load_Xy_cv_data, save_Xy_cv_data   
+from ..utils import load_Xy_cv_data, save_Xy_cv_data   
 
 import os.path
 
