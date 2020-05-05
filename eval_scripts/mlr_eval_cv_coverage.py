@@ -113,7 +113,7 @@ if __name__ == "__main__":
     coverages_str = [str(c) for c in coverages]
 
     ## MLR initialization
-    ########################################## 
+    #####################
 
     if _module == "pytorch_mlr":
         mlr = MLR(tol=_tol, learning_rate=_learning_rate, l1_ratio=None, 
@@ -133,11 +133,11 @@ if __name__ == "__main__":
     # "l1", "l2", "elasticnet", "none"
     clf_penalties = str_to_list(_penalties)
     clf_names = [mlr_name+"_"+pen.upper() for pen in clf_penalties]
+
     clf_scores = defaultdict(dict) 
     score_names = compile_score_names(eval_metric, avrg_metric)
 
-    parallel = Parallel(n_jobs=len(clf_names), prefer="processes", 
-            verbose=verbose)
+    parallel = Parallel(n_jobs=nJobs, prefer="processes", verbose=verbose)
 
     # If we have enough memory we can parallelize this loop
     for coverage in coverages:
@@ -146,7 +146,6 @@ if __name__ == "__main__":
 
         # Construct prefix for output files
         ###################################
-
         tag_fg = "FSZ{}_FCV{}_FCL{}_".format(str(fragmentSize), 
                 str(coverage), str(fragmentCount))
 
@@ -201,4 +200,3 @@ if __name__ == "__main__":
 
     plot_cv_figure(scores_dfs, score_names, coverages_str, "Coverage",
             outFile)
-# print also dataframes into a file
