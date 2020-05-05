@@ -139,7 +139,7 @@ def plot_cv_figure(scores, score_labels, x_values, xlabel,  out_file):
         p = dfl_mean.plot(kind='line', ax=axs[ind], style=styles, 
                 fontsize=sizefont, markersize=8)
 
-        dfa_mean.plot(kind='area', ax=axs[ind], alpha=0.2, color=colors,
+        dfa_mean.plot(kind='area', ax=axs[ind], alpha=0.2, color="gray",
                 fontsize=sizefont)
 
         # For ESP transparent rendering

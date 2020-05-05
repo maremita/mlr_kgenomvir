@@ -81,6 +81,8 @@ def compute_clf_coef_measures(
     coeffs = classifier.coef_
     intercepts = classifier.intercept_
  
+    measures['coef_sparsity'] = np.mean(coeffs.ravel() == 0)
+
     if hasattr(classifier, 'n_iter_'):
         if isinstance(classifier.n_iter_, (int, float, np.integer)):
             n_iter = classifier.n_iter_
@@ -90,7 +92,11 @@ def compute_clf_coef_measures(
 
         measures['n_iter'] = n_iter
 
-    measures['coef_sparsity'] = np.mean(coeffs.ravel() == 0)
+    if hasattr(classifier, 'train_loss_'):
+        measures['train_loss'] = classifier.train_loss_
+
+    if hasattr(classifier, 'epoch_time_'):
+        measures['epoch_time'] = classifier.epoch_time_
 
     # Prediction on train
     y_train_pred = classifier.predict(X_train)
@@ -192,7 +198,7 @@ def average_scores(scores_vc, avrg_metriq):
     return mean_std
 
 
-def perform_sk_mlr_cv(
+def perform_mlr_cv(
         classifier,
         clf_name,
         penalty,
@@ -221,12 +227,25 @@ def perform_sk_mlr_cv(
     ## Compute C of MLR
     n_train_samples = cv_indices[0][0].shape[0] 
 
-    if penalty == "none": 
-        classifier.C = 1.0
-    elif _lambda == 0:
-        classifier.C = np.inf
+
+    ## MLR hyper-parameters
+    # scikit learn mlr
+    if hasattr(classifier, 'C'):
+        if penalty == "none": 
+            classifier.C = 1.0
+        elif _lambda == 0:
+            classifier.C = np.inf
+        else:
+            classifier.C = 1./(_lambda * n_train_samples)
+
+    # pytorch mlr
+    elif hasattr(classifier, 'alpha'):
+        if penalty == "none": 
+            classifier.alpha = 0.0
+        else:
+            classifier.alpha = _lambda * n_train_samples
     else:
-        classifier.C = 1./(_lambda * n_train_samples)
+        raise ValueError("Classifier does not have C or alpha attributes") 
 
     classifier.penalty = penalty
     if penalty == "elasticnet": classifier.l1_ratio = 0.5

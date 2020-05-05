@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from mlr_kgenomvir.data.build_cv_data import build_load_save_cv_data
-from mlr_kgenomvir.models.model_evaluation import perform_sk_mlr_cv
+from mlr_kgenomvir.models.model_evaluation import perform_mlr_cv
 from mlr_kgenomvir.utils import compile_score_names
 from mlr_kgenomvir.utils import make_clf_score_dataframes
 from mlr_kgenomvir.utils import plot_cv_figure
@@ -20,6 +20,9 @@ import pandas as pd
 
 from joblib import Parallel, delayed
 from sklearn.base import clone
+
+# Models to evaluate
+from mlr_kgenomvir.models.pytorch_mlr import MLR
 from sklearn.linear_model import LogisticRegression
 
 
@@ -71,13 +74,18 @@ if __name__ == "__main__":
     avrg_metric = config.get("evaluation", "avrg_metric")
 
     # classifier
-    _multi_class = config.get("classifier", "multi_class")
+    _module = config.get("classifier", "module") # sklearn or pytorch_mlr
     _tol = config.getfloat("classifier", "tol")
     _lambda = config.getfloat("classifier", "lambda") 
     _l1_ratio = config.getfloat("classifier", "l1_ratio") 
     _solver = config.get("classifier", "solver")
     _max_iter = config.getint("classifier", "max_iter")
     _penalties = config.get("classifier", "penalty")
+
+    if _module == "pytorch_mlr":
+        _learning_rate = config.getfloat("classifier", "learning_rate")
+        _n_iter_no_change = config.getint("classifier", "n_iter_no_change")
+        _device = config.get("classifier", "device")
 
     # settings 
     nJobs = config.getint("settings", "n_jobs")
@@ -107,15 +115,24 @@ if __name__ == "__main__":
     ## MLR initialization
     ########################################## 
 
-    mlr = LogisticRegression(multi_class=_multi_class, tol=_tol, 
-            solver=_solver, max_iter=_max_iter, verbose=0, l1_ratio=None)
+    if _module == "pytorch_mlr":
+        mlr = MLR(tol=_tol, learning_rate=_learning_rate, l1_ratio=None, 
+                solver=_solver, max_iter=_max_iter, validation=False, 
+                n_iter_no_change=_n_iter_no_change, device=_device, 
+                random_state=randomState, verbose=verbose)
+        mlr_name = "PTMLR"
+
+    else:
+        mlr = LogisticRegression(multi_class="multi_class", tol=_tol, 
+                solver=_solver, max_iter=_max_iter, verbose=0, l1_ratio=None)
+        mlr_name = "SKMLR"
 
     ## Evaluate MLR models
     ######################
 
     # "l1", "l2", "elasticnet", "none"
     clf_penalties = str_to_list(_penalties)
-    clf_names = ["SKMLR_"+pen.upper() for pen in clf_penalties]
+    clf_names = [mlr_name+"_"+pen.upper() for pen in clf_penalties]
     clf_scores = defaultdict(dict) 
     score_names = compile_score_names(eval_metric, avrg_metric)
 
@@ -155,7 +172,7 @@ if __name__ == "__main__":
 
         cv_data = tt_data["data"]
 
-        mlr_scores = parallel(delayed(perform_sk_mlr_cv)(clone(mlr), clf_name,
+        mlr_scores = parallel(delayed(perform_mlr_cv)(clone(mlr), clf_name,
             clf_penalty, _lambda, cv_data, prefix_out, eval_metric,
             avrg_metric, cv_folds, saveFiles, verbose, randomState)
             for clf_name, clf_penalty in zip(clf_names, clf_penalties))

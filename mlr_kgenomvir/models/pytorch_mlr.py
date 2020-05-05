@@ -60,10 +60,10 @@ class DataSampler():
 class MLR(BaseEstimator, ClassifierMixin):
 
     def __init__(self, penalty='l2', tol=1e-4, alpha=1.0, l1_ratio=0., 
-            learning_rate=0.001, fit_intercept=True, class_weight=None,
-            random_state=None, solver='sgd', max_iter=100, validation=False,
-            n_iter_no_change=5, n_jobs=0, batch_size=1, device='cpu',
-            keep_losses=False, verbose=0):
+            learning_rate=0.001, fit_intercept=True, solver='sgd', 
+            class_weight=None, max_iter=100, validation=False,
+            n_iter_no_change=5, keep_losses=False, n_jobs=0,
+            device='cpu', random_state=None, verbose=0):
 
         self.penalty = penalty
         self.tol = tol
@@ -71,14 +71,13 @@ class MLR(BaseEstimator, ClassifierMixin):
         self.l1_ratio = l1_ratio
         self.learning_rate=learning_rate
         self.fit_intercept = fit_intercept
-        self.class_weight = class_weight
+        self.class_weight = class_weight # not tested yet
         self.random_state = random_state
         self.solver = solver
         self.max_iter = max_iter
         self.validation = validation
         self.n_iter_no_change = n_iter_no_change
-        self.n_jobs = n_jobs
-        self.batch_size = batch_size
+        self.n_jobs = n_jobs  # not used yet
         self.device = device
         self.keep_losses = keep_losses
         self.verbose = verbose
@@ -159,7 +158,7 @@ class MLR(BaseEstimator, ClassifierMixin):
         best_loss = np.inf
         no_improvement_count = 0
 
-        print(X.device, flush=True)
+        #print(X.device, flush=True)
 
         if self.keep_losses: self.train_losses_ = []
         if self.validation:
@@ -170,7 +169,7 @@ class MLR(BaseEstimator, ClassifierMixin):
             y_train = y[train_ind] 
             X_val = X[val_ind]
             y_val = y[val_ind]
-            print(X_train.device, flush=True)
+            #print(X_train.device, flush=True)
             X_y_loader = DataSampler(X_train, y_train, random_state=self.random_state)
 
             n_samples = X_train.shape[0]
@@ -260,8 +259,8 @@ class MLR(BaseEstimator, ClassifierMixin):
         if self.verbose and n_iter >= self.max_iter:
             print("max_iter {} is reached".format(n_iter), flush=True)
 
-        self.fit_time_ = end - start
-        self.train_loss_ = train_loss
+        self.epoch_time_ = end - start
+        self.train_loss_ = train_loss.item()
         self.n_iter_ = n_iter
 
     def init_regularization(self):
