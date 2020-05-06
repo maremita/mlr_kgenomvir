@@ -263,15 +263,27 @@ def perform_mlr_cv(
         raise ValueError("Classifier does not have C or alpha attributes") 
 
     classifier.penalty = penalty
+
     if penalty == "elasticnet": classifier.l1_ratio = 0.5
 
+    if hasattr(classifier, 'learning_rate'):
+        _lr = classifier.learning_rate
+
+        if learning_rate:
+            classifier.learning_rate = learning_rate
+            _lr = learning_rate
+
+        # add learning rate to clf name 
+        str_lr = format(_lr, '.0e') if _lambda not in list(
+                range(0, 10)) else str(_lr)
+        clf_name += "_LR"+str_lr
+
+    # add lambda to clf name
     if penalty != "none":
         str_lambda = format(_lambda, '.0e') if _lambda not in list(
                 range(0, 10)) else str(_lambda)
         clf_name += "_A"+str_lambda
 
-    if learning_rate and hasattr(classifier, 'learning_rate'):
-       classifier.learning_rate = learning_rate 
 
     ## CV iterations
     parallel = Parallel(n_jobs=n_jobs, prefer="processes", verbose=verbose)
