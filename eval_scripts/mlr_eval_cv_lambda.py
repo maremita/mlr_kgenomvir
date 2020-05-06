@@ -145,7 +145,7 @@ if __name__ == "__main__":
         mlr_name = "PTMLR"
 
     else:
-        mlr = LogisticRegression(multi_class="multi_class", tol=_tol, 
+        mlr = LogisticRegression(multi_class="multinomial", tol=_tol, 
                 solver=_solver, max_iter=_max_iter, verbose=0, l1_ratio=None)
         mlr_name = "SKMLR"
 
@@ -183,11 +183,12 @@ if __name__ == "__main__":
             print("\n{}. Evaluating {}".format(i, clf_name), flush=True)
  
         mlr_scores = parallel(delayed(perform_mlr_cv)(clone(mlr), clf_name,
-            clf_penalty, _lambda, cv_data, prefix_out, eval_metric,
-            avrg_metric, cv_folds, saveFiles, verbose, randomState)
+            clf_penalty, _lambda, cv_data, prefix_out, metric=eval_metric,
+            average_metric=avrg_metric, n_jobs=cv_folds, save_files=saveFiles,
+            verbose=verbose, random_state=randomState)
             for _lambda in lambdas)
 
-        for j, (_lambda, lambda_str) in enumerate(zip(lambdas, lambdas_str)):
+        for j, lambda_str in enumerate(lambdas_str):
             clf_scores[clf_name][lambda_str] = mlr_scores[j]
 
     scores_dfs = make_clf_score_dataframes(clf_scores, lambdas_str, 
@@ -195,9 +196,9 @@ if __name__ == "__main__":
 
     ## Save and Plot results
     ########################
-    outFile = os.path.join(outdir, "{}_{}_K{}{}_{}A{}to{}_MLR_LAMBDAS".format(
+    outFile = os.path.join(outdir, "{}_{}_K{}{}_{}A{}to{}_{}_LAMBDAS".format(
         virus_name, evalType, tag_kf, klen, tag_fg, lambdas_str[0],
-        lambdas_str[-1]))
+        lambdas_str[-1], mlr_name))
 
     if saveFiles:
         write_log(scores_dfs, config, outFile+".log")

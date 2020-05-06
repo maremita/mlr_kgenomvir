@@ -10,8 +10,9 @@ from sklearn.base import clone
 from sklearn.metrics import classification_report
 from sklearn.metrics import precision_recall_fscore_support
 from joblib import Parallel, delayed
-from joblib import dump, load
 
+import joblib
+import torch
 
 __author__ = "amine"
 
@@ -31,7 +32,21 @@ def compute_clf_coef_measures(
 
     measures = dict()
 
-    clf_file = prefix+clf_name+".jb"
+    if "torch" in classifier.__module__:
+        clf_ext = ".pt"
+        clf_load = torch.load
+        clf_save = torch.save
+
+    elif "sklearn" in classifier.__module__:
+        clf_ext = ".jb"
+        clf_load = joblib.load
+        clf_save = joblib.dump
+
+    else:
+        raise ValueError("Classifier type is not known: {}".format(
+            type(classifier))) 
+
+    clf_file = prefix+clf_name+clf_ext
     measures_file = prefix+clf_name+".npz"
 
     if save_files and os.path.isfile(clf_file) and\
@@ -43,7 +58,7 @@ def compute_clf_coef_measures(
 
         if return_coefs:
             with open(clf_file, 'rb') as fh:
-                classifier = load(fh)
+                classifier = clf_load(fh)
                 coeffs = classifier.coef_
                 intercepts = classifier.intercept_
 
@@ -139,7 +154,7 @@ def compute_clf_coef_measures(
 
     if save_files:
         with open(clf_file, 'wb') as fh:
-            dump(classifier, fh)
+            clf_save(classifier, fh)
         np.savez(measures_file, measures = measures)
 
     if verbose == 3:
@@ -155,7 +170,7 @@ def compute_clf_coef_measures(
 def average_scores(scores_vc, avrg_metriq):
     n_folds = len(scores_vc)
     moyennes = dict()
-    
+ 
     # Data that we need to fetch and average
     # X_train_sparsity: float
     # X_test_sparsity: float 
@@ -205,6 +220,7 @@ def perform_mlr_cv(
         _lambda,
         train_test_data,
         prefix,
+        learning_rate=None,
         metric="fscore",
         average_metric="weighted",
         n_jobs=1,
@@ -217,7 +233,7 @@ def perform_mlr_cv(
     y_train = train_test_data["y_train"]
     X_test = X_train
     y_test = y_train
-    
+ 
     if isinstance(train_test_data["X_test"], (np.ndarray, np.generic)):
         X_test = train_test_data["X_test"]
         y_test = train_test_data["y_test"]
@@ -226,7 +242,6 @@ def perform_mlr_cv(
 
     ## Compute C of MLR
     n_train_samples = cv_indices[0][0].shape[0] 
-
 
     ## MLR hyper-parameters
     # scikit learn mlr
@@ -255,6 +270,9 @@ def perform_mlr_cv(
                 range(0, 10)) else str(_lambda)
         clf_name += "_A"+str_lambda
 
+    if learning_rate and hasattr(classifier, 'learning_rate'):
+       classifier.learning_rate = learning_rate 
+
     ## CV iterations
     parallel = Parallel(n_jobs=n_jobs, prefer="processes", verbose=verbose)
 
@@ -266,7 +284,7 @@ def perform_mlr_cv(
         y_test[test_ind], prefix, return_coefs=False,
         save_files=save_files, verbose=verbose, random_state=random_state) 
         for fold, (train_ind, test_ind) in enumerate(cv_indices))
- 
+
     #print(cv_scores)
     avrg_scores = average_scores(cv_scores, average_metric)
 

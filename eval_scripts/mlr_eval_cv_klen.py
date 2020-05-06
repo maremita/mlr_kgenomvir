@@ -141,7 +141,7 @@ if __name__ == "__main__":
         mlr_name = "PTMLR"
 
     else:
-        mlr = LogisticRegression(multi_class="multi_class", tol=_tol, 
+        mlr = LogisticRegression(multi_class="multinomial", tol=_tol, 
                 solver=_solver, max_iter=_max_iter, verbose=0, l1_ratio=None)
         mlr_name = "SKMLR"
 
@@ -185,8 +185,9 @@ if __name__ == "__main__":
         cv_data = tt_data["data"]
 
         mlr_scores = parallel(delayed(perform_mlr_cv)(clone(mlr), clf_name,
-            clf_penalty, _lambda, cv_data, prefix_out, eval_metric,
-            avrg_metric, cv_folds, saveFiles, verbose, randomState)
+            clf_penalty, _lambda, cv_data, prefix_out, metric=eval_metric,
+            average_metric=avrg_metric, n_jobs=cv_folds, save_files=saveFiles,
+            verbose=verbose, random_state=randomState)
             for clf_name, clf_penalty in zip(clf_names, clf_penalties))
         #print(mlr_scores)
 
@@ -203,8 +204,9 @@ if __name__ == "__main__":
     ## Save and Plot results
     ########################
     outFile = os.path.join(outdir, 
-            "{}_{}_K{}{}to{}_{}A{}_MLR_KLENGTHS".format(virus_name, evalType,
-                tag_kf, klen_list[0], klen_list[-1], tag_fg, _lambda))
+            "{}_{}_K{}{}to{}_{}A{}_{}_KLENGTHS".format(virus_name, evalType,
+                tag_kf, klen_list[0], klen_list[-1], tag_fg, _lambda,
+                mlr_name ))
 
     if saveFiles:
         write_log(scores_dfs, config, outFile+".log")
