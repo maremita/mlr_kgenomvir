@@ -203,5 +203,5 @@ if __name__ == "__main__":
     if saveFiles:
         write_log(scores_dfs, config, outFile+".log")
 
-    plot_cv_figure(scores_dfs, score_names, lrs_str, "Lambda", 
+    plot_cv_figure(scores_dfs, score_names, lrs_str, "Learning rate", 
             outFile)

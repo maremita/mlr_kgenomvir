@@ -293,10 +293,13 @@ class MLR(BaseEstimator, ClassifierMixin):
             self.wuq = torch.zeros_like(w).to(self.device_).detach()
             self.u =  torch.tensor(0.).to(self.device_).detach()
 
+    def return_none(self):
+        return None
+
     def _regularizer(self):
 
         if self.penalty == "none":
-            return lambda : None
+            return self.return_none
 
         elif self.penalty == "l1":
             return self._l1
