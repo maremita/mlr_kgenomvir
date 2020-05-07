@@ -246,19 +246,20 @@ def perform_mlr_cv(
     ## MLR hyper-parameters
     # scikit learn mlr
     if hasattr(classifier, 'C'):
-        if penalty == "none": 
+        if penalty == "none":
+            # To avoid sklearn warning (_logistic.py#L1504)
             classifier.C = 1.0
         elif _lambda == 0:
             classifier.C = np.inf
         else:
-            classifier.C = 1./(_lambda * n_train_samples)
+            classifier.C = 1./_lambda
 
     # pytorch mlr
     elif hasattr(classifier, 'alpha'):
         if penalty == "none": 
             classifier.alpha = 0.0
         else:
-            classifier.alpha = _lambda * n_train_samples
+            classifier.alpha = _lambda
     else:
         raise ValueError("Classifier does not have C or alpha attributes") 
 
@@ -283,7 +284,6 @@ def perform_mlr_cv(
         str_lambda = format(_lambda, '.0e') if _lambda not in list(
                 range(0, 10)) else str(_lambda)
         clf_name += "_A"+str_lambda
-
 
     ## CV iterations
     parallel = Parallel(n_jobs=n_jobs, prefer="processes", verbose=verbose)

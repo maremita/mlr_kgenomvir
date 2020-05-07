@@ -88,7 +88,7 @@ class MLR(BaseEstimator, ClassifierMixin):
  
         if self.device_.type == "cuda":
             self.n_jobs = 0
-        
+ 
         # TODO
         # Check validation value
 
@@ -124,7 +124,8 @@ class MLR(BaseEstimator, ClassifierMixin):
                 self.device_)
 
         # scale alpha by number of samples
-        self.alpha /= n_samples
+        # self.alpha /= n_samples
+        self.alpha_scaled_ = self.alpha / n_samples
 
         # Define loss function
         self.cross_entropy_loss = nn.CrossEntropyLoss(reduction="mean",
@@ -210,7 +211,7 @@ class MLR(BaseEstimator, ClassifierMixin):
             with torch.no_grad():
                 # This stopping creteria is adapted from SGD scikit-learn
                 # implementation
-                
+
                 train_loss /= n_samples
                 if self.keep_losses: self.train_losses_.append(train_loss)
 
@@ -279,12 +280,14 @@ class MLR(BaseEstimator, ClassifierMixin):
             self.l1_ratio = 0.
 
         if self.penalty in ["l2", "elasticnet"]:
-            l2_decay_scale = self.learning_rate*(1 - self.l1_ratio)*self.alpha
+            l2_decay_scale = self.learning_rate*(1 - self.l1_ratio)*\
+                    self.alpha_scaled_
             self.l2_decay_scale = torch.tensor(l2_decay_scale).to(
                     self.device_).detach()
 
         if self.penalty in ["l1", "elasticnet"]:
-            l1_decay_scale = self.learning_rate*self.l1_ratio*self.alpha 
+            l1_decay_scale = self.learning_rate*self.l1_ratio*\
+                    self.alpha_scaled_
             self.l1_decay_scale = torch.tensor(l1_decay_scale).to(
                     self.device_).detach()
 
