@@ -110,6 +110,15 @@ def compute_clf_coef_measures(
     if hasattr(classifier, 'train_loss_'):
         measures['train_loss'] = classifier.train_loss_
 
+    if hasattr(classifier, 'best_loss_'):
+        measures['best_loss'] = classifier.best_loss_
+
+    if hasattr(classifier, 'train_losses_'):
+        measures['train_losses'] = classifier.train_losses_
+
+    if hasattr(classifier, 'val_losses_'):
+        measures['val_losses'] = classifier.val_losses_
+
     if hasattr(classifier, 'epoch_time_'):
         measures['epoch_time'] = classifier.epoch_time_
 

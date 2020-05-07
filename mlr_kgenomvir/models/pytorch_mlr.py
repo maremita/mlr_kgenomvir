@@ -62,7 +62,7 @@ class MLR(BaseEstimator, ClassifierMixin):
     def __init__(self, penalty='l2', tol=1e-4, alpha=1.0, l1_ratio=0., 
             learning_rate=0.001, fit_intercept=True, solver='sgd', 
             class_weight=None, max_iter=100, validation=False,
-            n_iter_no_change=5, keep_losses=False, n_jobs=0,
+            n_iter_no_change=5, keep_losses=True, n_jobs=0,
             device='cpu', random_state=None, verbose=0):
 
         self.penalty = penalty
@@ -260,9 +260,16 @@ class MLR(BaseEstimator, ClassifierMixin):
         if self.verbose and n_iter >= self.max_iter:
             print("max_iter {} is reached".format(n_iter), flush=True)
 
+        # Gether some relevant attributes 
         self.epoch_time_ = end - start
         self.train_loss_ = train_loss.item()
+        self.best_loss_ = best_loss.item()
         self.n_iter_ = n_iter
+
+        if self.keep_losses:
+            self.train_losses_ = [l.item() for l in self.train_losses_]
+            if self.validation:
+                self.val_losses_ = [l.item() for l in self.val_losses_]
 
     def init_regularization(self):
         # check penalty type 
