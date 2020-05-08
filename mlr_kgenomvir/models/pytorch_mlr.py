@@ -93,7 +93,8 @@ class MLR(BaseEstimator, ClassifierMixin):
         # Check validation value
 
         self.y_encoder = LabelEncoder()
-        encoded_y = self.y_encoder.fit_transform(y).astype(np.long, copy=False)
+        encoded_y = self.y_encoder.fit_transform(y).astype(np.long,
+                copy=False)
 
         if not isinstance(X, torch.FloatTensor):
             X = torch.from_numpy(X).float()
@@ -163,15 +164,18 @@ class MLR(BaseEstimator, ClassifierMixin):
 
         if self.keep_losses: self.train_losses_ = []
         if self.validation:
-            sss = StratifiedShuffleSplit(n_splits=1, test_size=self.validation)
-            train_ind, val_ind = next(sss.split(np.zeros(n_samples), y.cpu().numpy()))
+            sss = StratifiedShuffleSplit(n_splits=1,
+                    test_size=self.validation)
+            train_ind, val_ind = next(sss.split(np.zeros(n_samples),
+                y.cpu().numpy()))
 
             X_train = X[train_ind]
             y_train = y[train_ind] 
             X_val = X[val_ind]
             y_val = y[val_ind]
             #print(X_train.device, flush=True)
-            X_y_loader = DataSampler(X_train, y_train, random_state=self.random_state)
+            X_y_loader = DataSampler(X_train, y_train,
+                    random_state=self.random_state)
 
             n_samples = X_train.shape[0]
             n_val_samples = X_val.shape[0]
@@ -230,7 +234,7 @@ class MLR(BaseEstimator, ClassifierMixin):
                     if self.keep_losses: self.val_losses_.append(val_loss)
  
                 else:
-                    if self.tol > -np.inf and train_loss > best_loss - self.tol:
+                    if self.tol > -np.inf and train_loss > best_loss-self.tol:
                         no_improvement_count += 1
                     else:
                         no_improvement_count = 0
@@ -241,17 +245,21 @@ class MLR(BaseEstimator, ClassifierMixin):
                 if no_improvement_count >= self.n_iter_no_change:
 
                     if self.verbose:
-                        print("\nConvergence after {} epochs".format(epoch+1), flush=True)
+                        print("\nConvergence after {} epochs".format(epoch+1),
+                                flush=True)
                     break
 
                 elif self.verbose == 2:
                     # predict training labels
                     y_pred = self.predict(X)
-                    score = f1_score(self.y_encoder.inverse_transform(y), y_pred, average="weighted")
+                    score = f1_score(self.y_encoder.inverse_transform(y),
+                            y_pred, average="weighted")
 
                     print("Epoch {}\ttrain_loss {}\tval_loss {}\t"\
-                            "best_loss {}\tno_improve_count {}\tf1_score {}".format(
-                                epoch+1, train_loss, val_loss,  best_loss, no_improvement_count, score), flush=True)
+                            "best_loss {}\tno_improve_count {}\t"\
+                            "f1_score {}".format(epoch+1, train_loss,
+                                val_loss,  best_loss, no_improvement_count,
+                                score), flush=True)
 
             n_iter +=1
 
@@ -421,8 +429,8 @@ class MLR(BaseEstimator, ClassifierMixin):
         Parameters
         ----------
         X : array-like of shape (n_samples, n_features)
-            Vector to be scored, where `n_samples` is the number of samples and
-            `n_features` is the number of features.
+            Vector to be scored, where `n_samples` is the number of samples
+            and `n_features` is the number of features.
 
         Returns
         -------
@@ -444,8 +452,8 @@ class MLR(BaseEstimator, ClassifierMixin):
         Parameters
         ----------
         X : array-like of shape (n_samples, n_features)
-            Vector to be scored, where `n_samples` is the number of samples and
-            `n_features` is the number of features.
+            Vector to be scored, where `n_samples` is the number of samples
+            and `n_features` is the number of features.
 
         Returns
         -------

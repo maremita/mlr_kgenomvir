@@ -45,9 +45,12 @@ if __name__ == "__main__":
     print("RUN {}".format(sys.argv[0]), flush=True)
 
     # Get argument values from ini file
+    config_file = sys.argv[1]
     config = configparser.ConfigParser(
             interpolation=configparser.ExtendedInterpolation())
-    config.read(sys.argv[1])
+ 
+    with open(config_file, "r") as cf:
+        config.read_file(cf)
 
     # virus
     virus_name = config.get("virus", "virus_code")
