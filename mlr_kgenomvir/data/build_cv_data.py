@@ -1,7 +1,7 @@
 from .seq_collections import SeqCollection
 from .kmer_collections import GivenKmersCollection
 from .kmer_collections import build_kmers_Xy_data, build_kmers
-from .utils import load_Xy_cv_data, save_Xy_cv_data   
+from ..utils import load_Xy_cv_data, save_Xy_cv_data   
 
 import os.path
 
@@ -32,22 +32,27 @@ def build_cv_data(
     stride = int(fragment_size/fragment_cov)
 
     ## Build data
+    # Set dtype to int32 to comply with pytorch. It is not compatible with
+    # uint64
     if eval_type in ["CC", "FF"]:
 
         if eval_type == "FF":
-            seq_data = seq_data.extract_fragments(fragment_size, stride=stride)
+            seq_data = seq_data.extract_fragments(fragment_size,
+                    stride=stride)
 
             if fragment_count > 1:
                 seq_data = seq_data.stratified_sample(fragment_count)
 
-        X_train, y_train = build_kmers_Xy_data(seq_data, k, full_kmers=full_kmers)
+        X_train, y_train = build_kmers_Xy_data(seq_data, k,
+                full_kmers=full_kmers, dtype=np.int32)
         X_test = "X_train"  # a flag only
         y_test = "y_train"  # a flag only
 
     elif eval_type == "CF":
 
         # Build Train data from complete sequence
-        X_train_kmer = build_kmers(seq_data, k, full_kmers=full_kmers)
+        X_train_kmer = build_kmers(seq_data, k, full_kmers=full_kmers,
+                dtype=np.int32)
 
         X_train = X_train_kmer.data
         y_train = np.asarray(seq_data.labels)
@@ -61,9 +66,9 @@ def build_cv_data(
  
         parents = seq_test.get_parents_rank_list()
 
-        X_test = GivenKmersCollection(seq_test, X_train_kmer_list).data
+        X_test = GivenKmersCollection(seq_test, X_train_kmer_list, 
+                dtype=np.int32).data
         y_test = np.asarray(seq_test.labels)
-
 
     ## Get cross-validation indices
     sss = StratifiedShuffleSplit(n_splits=n_splits, test_size=test_size,

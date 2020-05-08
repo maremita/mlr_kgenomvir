@@ -30,8 +30,8 @@ __author__ = "amine"
 
 
 """
-The script evaluates the performance of different regularized MLR models
-with function to kmer lengths for virus genome classification
+The script evaluates the effect of the learning rate (step size)
+on the performance of regularized MLR classifiers for virus genome classification
 """
 
 
@@ -60,9 +60,7 @@ if __name__ == "__main__":
     outdir = config.get("io", "outdir")
 
     # seq_rep
-    # ........ main evaluation parameters ..............
-    k_lenghts = config.get("seq_rep", "k")
-    # ..................................................
+    klen = config.getint("seq_rep", "k")
     fullKmers = config.getboolean("seq_rep", "full_kmers") 
 
     # evaluation
@@ -76,13 +74,15 @@ if __name__ == "__main__":
     _module = config.get("classifier", "module") # sklearn or pytorch_mlr
     _tol = config.getfloat("classifier", "tol")
     _lambda = config.getfloat("classifier", "lambda") 
+    # ........ main evaluation parameters ..............
+    _learning_rates = config.get("classifier", "learning_rate")
+    # ..................................................
     _l1_ratio = config.getfloat("classifier", "l1_ratio") 
     _solver = config.get("classifier", "solver")
     _max_iter = config.getint("classifier", "max_iter")
     _penalties = config.get("classifier", "penalty")
 
     if _module == "pytorch_mlr":
-        _learning_rate = config.getfloat("classifier", "learning_rate")
         _n_iter_no_change = config.getint("classifier", "n_iter_no_change")
         _device = config.get("classifier", "device")
 
@@ -105,8 +105,8 @@ if __name__ == "__main__":
         raise ValueError("evalType argument have to be one of CC, CF or"+
                 " FF values")
 
-    ## Tags for prefix out
-    ######################
+    # Construct prefix for output files
+    ###################################
     if fullKmers:
         tag_kf = "F"
     else:
@@ -128,25 +128,46 @@ if __name__ == "__main__":
     outdir = os.path.join(outdir,"{}/{}".format(virus_name, evalType))
     makedirs(outdir, mode=0o700, exist_ok=True)
 
-    ## K lengths to evaluate
-    ########################
-    klen_list = str_to_list(k_lenghts, cast=int)
-    klen_list_str = [str(k) for k in klen_list]
+    prefix_out = os.path.join(outdir, "{}_{}_K{}{}_{}".format(
+        virus_name, evalType, tag_kf, klen, tag_fg))
 
+    ## Lambda values to evaluate
+    ############################
+    lrs = str_to_list(_learning_rates, cast=float)
+    lrs_str = [format(l, '.0e') if l not in list(
+        range(0,10)) else str(l) for l in lrs]
+ 
     ## MLR initialization
     #####################
 
     if _module == "pytorch_mlr":
-        mlr = MLR(tol=_tol, learning_rate=_learning_rate, l1_ratio=None, 
-                solver=_solver, max_iter=_max_iter, validation=False, 
+        mlr = MLR(tol=_tol, l1_ratio=None, solver=_solver,
+                max_iter=_max_iter, validation=False, 
                 n_iter_no_change=_n_iter_no_change, device=_device, 
                 random_state=randomState, verbose=verbose)
         mlr_name = "PTMLR"
 
     else:
-        mlr = LogisticRegression(multi_class="multinomial", tol=_tol, 
-                solver=_solver, max_iter=_max_iter, verbose=0, l1_ratio=None)
-        mlr_name = "SKMLR"
+        raise ValueError("module values must be pytorch_mlr."+\
+                " Sklearn implementation of MLR does not initialize"+\
+                " learning rate")
+
+    ## Generate training and testing data
+    ####################################
+    tt_data = build_load_save_cv_data(
+            seq_file,
+            cls_file,
+            prefix_out,
+            eval_type=evalType,
+            k=klen,
+            full_kmers=fullKmers, 
+            n_splits=cv_folds,
+            test_size=testSize,
+            random_state=randomState,
+            verbose=verbose,
+            **args_fg)
+
+    cv_data = tt_data["data"]
 
     ## Evaluate MLR models
     ######################
@@ -160,59 +181,30 @@ if __name__ == "__main__":
 
     parallel = Parallel(n_jobs=nJobs, prefer="processes", verbose=verbose)
 
-    # If we have enough memory we can parallelize this loop
-    for klen in klen_list:
+    for i, (clf_name, clf_penalty) in enumerate(zip(clf_names,clf_penalties)):
         if verbose:
-            print("\nEvaluating K {}".format(klen), flush=True)
-
-        # Construct prefix for output files
-        ###################################
-        prefix_out = os.path.join(outdir, "{}_{}_K{}{}_{}".format(
-            virus_name, evalType, tag_kf, klen, tag_fg))
-
-        ## Generate training and testing data
-        ####################################
-        tt_data = build_load_save_cv_data(
-                seq_file,
-                cls_file,
-                prefix_out,
-                eval_type=evalType,
-                k=klen,
-                full_kmers=fullKmers, 
-                n_splits=cv_folds,
-                test_size=testSize,
-                random_state=randomState,
-                verbose=verbose,
-                **args_fg)
-
-        cv_data = tt_data["data"]
-
-        mlr_scores = parallel(delayed(perform_mlr_cv)(clone(mlr), clf_name,
-            clf_penalty, _lambda, cv_data, prefix_out, metric=eval_metric,
-            average_metric=avrg_metric, n_jobs=cv_folds, save_files=saveFiles,
-            verbose=verbose, random_state=randomState)
-            for clf_name, clf_penalty in zip(clf_names, clf_penalties))
-        #print(mlr_scores)
-
-        for i, clf_name in enumerate(clf_names):
-            clf_scores[clf_name][str(klen)] = mlr_scores[i]
+            print("\n{}. Evaluating {}".format(i, clf_name), flush=True)
  
-    #print(clf_scores)
+        mlr_scores = parallel(delayed(perform_mlr_cv)(clone(mlr), clf_name,
+            clf_penalty, _lambda, cv_data, prefix_out, learning_rate=_lr,
+            metric=eval_metric, average_metric=avrg_metric, n_jobs=cv_folds,
+            save_files=saveFiles, verbose=verbose, random_state=randomState)
+            for _lr in lrs)
 
-    scores_dfs = make_clf_score_dataframes(clf_scores, klen_list_str, 
+        for j, lr_str in enumerate(lrs_str):
+            clf_scores[clf_name][lr_str] = mlr_scores[j]
+
+    scores_dfs = make_clf_score_dataframes(clf_scores, lrs_str, 
             score_names, _max_iter)
-
-    #pprint(scores_dfs)
 
     ## Save and Plot results
     ########################
-    outFile = os.path.join(outdir, 
-            "{}_{}_K{}{}to{}_{}A{}_{}_KLENGTHS".format(virus_name, evalType,
-                tag_kf, klen_list[0], klen_list[-1], tag_fg, _lambda,
-                mlr_name ))
+    outFile = os.path.join(outdir, "{}_{}_K{}{}_{}LR{}to{}_A{}_{}_LRS".format(
+        virus_name, evalType, tag_kf, klen, tag_fg, lrs_str[0],
+        lrs_str[-1], _lambda, mlr_name))
 
     if saveFiles:
         write_log(scores_dfs, config, outFile+".log")
 
-    plot_cv_figure(scores_dfs, score_names, klen_list_str, "K length", 
+    plot_cv_figure(scores_dfs, score_names, lrs_str, "Learning rate", 
             outFile)

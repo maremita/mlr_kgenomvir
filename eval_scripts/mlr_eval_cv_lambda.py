@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-from mlr_kgenomvir.build_cv_data import build_load_save_cv_data
-from mlr_kgenomvir.model_evaluation import perform_sk_mlr_cv
+from mlr_kgenomvir.data.build_cv_data import build_load_save_cv_data
+from mlr_kgenomvir.models.model_evaluation import perform_mlr_cv
 from mlr_kgenomvir.utils import compile_score_names
 from mlr_kgenomvir.utils import make_clf_score_dataframes
 from mlr_kgenomvir.utils import plot_cv_figure
@@ -20,6 +20,9 @@ import pandas as pd
 
 from joblib import Parallel, delayed
 from sklearn.base import clone
+
+# Models to evaluate
+from mlr_kgenomvir.models.pytorch_mlr import MLR
 from sklearn.linear_model import LogisticRegression
 
 
@@ -41,9 +44,12 @@ if __name__ == "__main__":
     print("RUN {}".format(sys.argv[0]), flush=True)
 
     # Get argument values from ini file
+    config_file = sys.argv[1]
     config = configparser.ConfigParser(
             interpolation=configparser.ExtendedInterpolation())
-    config.read(sys.argv[1])
+ 
+    with open(config_file, "r") as cf:
+        config.read_file(cf)
 
     # virus
     virus_name = config.get("virus", "virus_code")
@@ -65,7 +71,7 @@ if __name__ == "__main__":
     avrg_metric = config.get("evaluation", "avrg_metric")
 
     # classifier
-    _multi_class = config.get("classifier", "multi_class")
+    _module = config.get("classifier", "module") # sklearn or pytorch_mlr
     _tol = config.getfloat("classifier", "tol")
     # ........ main evaluation parameters ..............
     _lambdas = config.get("classifier", "lambda")
@@ -75,12 +81,16 @@ if __name__ == "__main__":
     _max_iter = config.getint("classifier", "max_iter")
     _penalties = config.get("classifier", "penalty")
 
+    if _module == "pytorch_mlr":
+        _learning_rate = config.getfloat("classifier", "learning_rate")
+        _n_iter_no_change = config.getint("classifier", "n_iter_no_change")
+        _device = config.get("classifier", "device")
+
     # settings 
     nJobs = config.getint("settings", "n_jobs")
     verbose = config.getint("settings", "verbose")
     saveFiles = config.getboolean("settings", "save_files")
     randomState = config.getint("settings", "random_state")
-
 
     if evalType in ["CC", "CF", "FF"]:
         if evalType in ["CF", "FF"]:
@@ -113,6 +123,7 @@ if __name__ == "__main__":
                 'fragment_cov':fragmentCov,
                 'fragment_count':fragmentCount}
 
+    # OutDir folder
     ###############
     outdir = os.path.join(outdir,"{}/{}".format(virus_name, evalType))
     makedirs(outdir, mode=0o700, exist_ok=True)
@@ -120,18 +131,26 @@ if __name__ == "__main__":
     prefix_out = os.path.join(outdir, "{}_{}_K{}{}_{}".format(
         virus_name, evalType, tag_kf, klen, tag_fg))
 
-    ## MLR hyper-parameters and initialization
-    ##########################################
-
+    ## Lambda values to evaluate
+    ############################
     lambdas = str_to_list(_lambdas, cast=float)
-
     lambdas_str = [format(l, '.0e') if l not in list(
         range(0,10)) else str(l) for l in lambdas]
  
-    mlr = LogisticRegression(multi_class=_multi_class, tol=_tol, 
-            solver=_solver, max_iter=_max_iter, verbose=0, l1_ratio=None)
+    ## MLR initialization
+    #####################
 
-    parallel = Parallel(n_jobs=nJobs, prefer="processes", verbose=verbose)
+    if _module == "pytorch_mlr":
+        mlr = MLR(tol=_tol, learning_rate=_learning_rate, l1_ratio=None, 
+                solver=_solver, max_iter=_max_iter, validation=False, 
+                n_iter_no_change=_n_iter_no_change, device=_device, 
+                random_state=randomState, verbose=verbose)
+        mlr_name = "PTMLR"
+
+    else:
+        mlr = LogisticRegression(multi_class="multinomial", tol=_tol, 
+                solver=_solver, max_iter=_max_iter, verbose=0, l1_ratio=None)
+        mlr_name = "SKMLR"
 
     ## Generate training and testing data
     ####################################
@@ -155,21 +174,24 @@ if __name__ == "__main__":
 
     # "l1", "l2", "elasticnet", "none"
     clf_penalties = str_to_list(_penalties)
-    clf_names = ["SKMLR_"+pen.upper() for pen in clf_penalties]
+    clf_names = [mlr_name+"_"+pen.upper() for pen in clf_penalties]
 
     clf_scores = defaultdict(dict)
     score_names = compile_score_names(eval_metric, avrg_metric)
+
+    parallel = Parallel(n_jobs=nJobs, prefer="processes", verbose=verbose)
 
     for i, (clf_name, clf_penalty) in enumerate(zip(clf_names,clf_penalties)):
         if verbose:
             print("\n{}. Evaluating {}".format(i, clf_name), flush=True)
  
-        mlr_scores = parallel(delayed(perform_sk_mlr_cv)(clone(mlr), clf_name,
-            clf_penalty, _lambda, cv_data, prefix_out, eval_metric,
-            avrg_metric, cv_folds, saveFiles, verbose, randomState)
+        mlr_scores = parallel(delayed(perform_mlr_cv)(clone(mlr), clf_name,
+            clf_penalty, _lambda, cv_data, prefix_out, metric=eval_metric,
+            average_metric=avrg_metric, n_jobs=cv_folds, save_files=saveFiles,
+            verbose=verbose, random_state=randomState)
             for _lambda in lambdas)
 
-        for j, (_lambda, lambda_str) in enumerate(zip(lambdas, lambdas_str)):
+        for j, lambda_str in enumerate(lambdas_str):
             clf_scores[clf_name][lambda_str] = mlr_scores[j]
 
     scores_dfs = make_clf_score_dataframes(clf_scores, lambdas_str, 
@@ -177,9 +199,9 @@ if __name__ == "__main__":
 
     ## Save and Plot results
     ########################
-    outFile = os.path.join(outdir, "{}_{}_K{}{}_{}A{}to{}_MLR_LAMBDAS".format(
+    outFile = os.path.join(outdir, "{}_{}_K{}{}_{}A{}to{}_{}_LAMBDAS".format(
         virus_name, evalType, tag_kf, klen, tag_fg, lambdas_str[0],
-        lambdas_str[-1]))
+        lambdas_str[-1], mlr_name))
 
     if saveFiles:
         write_log(scores_dfs, config, outFile+".log")

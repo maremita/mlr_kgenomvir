@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-from mlr_kgenomvir.build_cv_data import build_load_save_cv_data
-from mlr_kgenomvir.model_evaluation import perform_sk_mlr_cv
+from mlr_kgenomvir.data.build_cv_data import build_load_save_cv_data
+from mlr_kgenomvir.models.model_evaluation import perform_mlr_cv
 from mlr_kgenomvir.utils import compile_score_names
 from mlr_kgenomvir.utils import make_clf_score_dataframes
 from mlr_kgenomvir.utils import plot_cv_figure
@@ -20,6 +20,9 @@ import pandas as pd
 
 from joblib import Parallel, delayed
 from sklearn.base import clone
+
+# Models to evaluate
+from mlr_kgenomvir.models.pytorch_mlr import MLR
 from sklearn.linear_model import LogisticRegression
 
 
@@ -42,9 +45,12 @@ if __name__ == "__main__":
     print("RUN {}".format(sys.argv[0]), flush=True)
 
     # Get argument values from ini file
+    config_file = sys.argv[1]
     config = configparser.ConfigParser(
             interpolation=configparser.ExtendedInterpolation())
-    config.read(sys.argv[1])
+ 
+    with open(config_file, "r") as cf:
+        config.read_file(cf)
 
     # virus
     virus_name = config.get("virus", "virus_code")
@@ -71,13 +77,18 @@ if __name__ == "__main__":
     avrg_metric = config.get("evaluation", "avrg_metric")
 
     # classifier
-    _multi_class = config.get("classifier", "multi_class")
+    _module = config.get("classifier", "module") # sklearn or pytorch_mlr
     _tol = config.getfloat("classifier", "tol")
     _lambda = config.getfloat("classifier", "lambda") 
     _l1_ratio = config.getfloat("classifier", "l1_ratio") 
     _solver = config.get("classifier", "solver")
     _max_iter = config.getint("classifier", "max_iter")
     _penalties = config.get("classifier", "penalty")
+
+    if _module == "pytorch_mlr":
+        _learning_rate = config.getfloat("classifier", "learning_rate")
+        _n_iter_no_change = config.getint("classifier", "n_iter_no_change")
+        _device = config.get("classifier", "device")
 
     # settings 
     nJobs = config.getint("settings", "n_jobs")
@@ -105,22 +116,31 @@ if __name__ == "__main__":
     coverages_str = [str(c) for c in coverages]
 
     ## MLR initialization
-    ########################################## 
+    #####################
 
-    mlr = LogisticRegression(multi_class=_multi_class, tol=_tol, 
-            solver=_solver, max_iter=_max_iter, verbose=0, l1_ratio=None)
+    if _module == "pytorch_mlr":
+        mlr = MLR(tol=_tol, learning_rate=_learning_rate, l1_ratio=None, 
+                solver=_solver, max_iter=_max_iter, validation=False, 
+                n_iter_no_change=_n_iter_no_change, device=_device, 
+                random_state=randomState, verbose=verbose)
+        mlr_name = "PTMLR"
+
+    else:
+        mlr = LogisticRegression(multi_class="multinomial", tol=_tol, 
+                solver=_solver, max_iter=_max_iter, verbose=0, l1_ratio=None)
+        mlr_name = "SKMLR"
 
     ## Evaluate MLR models
     ######################
 
     # "l1", "l2", "elasticnet", "none"
     clf_penalties = str_to_list(_penalties)
-    clf_names = ["SKMLR_"+pen.upper() for pen in clf_penalties]
+    clf_names = [mlr_name+"_"+pen.upper() for pen in clf_penalties]
+
     clf_scores = defaultdict(dict) 
     score_names = compile_score_names(eval_metric, avrg_metric)
 
-    parallel = Parallel(n_jobs=len(clf_names), prefer="processes", 
-            verbose=verbose)
+    parallel = Parallel(n_jobs=nJobs, prefer="processes", verbose=verbose)
 
     # If we have enough memory we can parallelize this loop
     for coverage in coverages:
@@ -129,7 +149,6 @@ if __name__ == "__main__":
 
         # Construct prefix for output files
         ###################################
-
         tag_fg = "FSZ{}_FCV{}_FCL{}_".format(str(fragmentSize), 
                 str(coverage), str(fragmentCount))
 
@@ -155,9 +174,10 @@ if __name__ == "__main__":
 
         cv_data = tt_data["data"]
 
-        mlr_scores = parallel(delayed(perform_sk_mlr_cv)(clone(mlr), clf_name,
-            clf_penalty, _lambda, cv_data, prefix_out, eval_metric,
-            avrg_metric, cv_folds, saveFiles, verbose, randomState)
+        mlr_scores = parallel(delayed(perform_mlr_cv)(clone(mlr), clf_name,
+            clf_penalty, _lambda, cv_data, prefix_out, metric=eval_metric,
+            average_metric=avrg_metric, n_jobs=cv_folds, save_files=saveFiles,
+            verbose=verbose, random_state=randomState)
             for clf_name, clf_penalty in zip(clf_names, clf_penalties))
         #print(mlr_scores)
 
@@ -173,15 +193,14 @@ if __name__ == "__main__":
 
     ## Save and Plot results
     ########################
-    tag_cov = "FSZ{}_FCV{}to{}_FCL{}_".format(str(fragmentSize), 
+    tag_cov = "FSZ{}_FCV{}to{}_FCL{}".format(str(fragmentSize), 
             coverages_str[0], coverages_str[-1], str(fragmentCount))
 
-    outFile = os.path.join(outdir, "{}_{}_K{}{}_{}A{}_MLR_COVERAGES".format(
-        virus_name, evalType, tag_kf, klen, tag_cov, _lambda))
+    outFile = os.path.join(outdir, "{}_{}_K{}{}_{}_A{}_{}_COVERAGES".format(
+        virus_name, evalType, tag_kf, klen, tag_cov, _lambda, mlr_name))
 
     if saveFiles:
         write_log(scores_dfs, config, outFile+".log")
 
     plot_cv_figure(scores_dfs, score_names, coverages_str, "Coverage",
             outFile)
-# print also dataframes into a file

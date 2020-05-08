@@ -10,8 +10,9 @@ from sklearn.base import clone
 from sklearn.metrics import classification_report
 from sklearn.metrics import precision_recall_fscore_support
 from joblib import Parallel, delayed
-from joblib import dump, load
 
+import joblib
+import torch
 
 __author__ = "amine"
 
@@ -31,7 +32,21 @@ def compute_clf_coef_measures(
 
     measures = dict()
 
-    clf_file = prefix+clf_name+".jb"
+    if "torch" in classifier.__module__:
+        clf_ext = ".pt"
+        clf_load = torch.load
+        clf_save = torch.save
+
+    elif "sklearn" in classifier.__module__:
+        clf_ext = ".jb"
+        clf_load = joblib.load
+        clf_save = joblib.dump
+
+    else:
+        raise ValueError("Classifier type is not known: {}".format(
+            type(classifier))) 
+
+    clf_file = prefix+clf_name+clf_ext
     measures_file = prefix+clf_name+".npz"
 
     if save_files and os.path.isfile(clf_file) and\
@@ -43,7 +58,7 @@ def compute_clf_coef_measures(
 
         if return_coefs:
             with open(clf_file, 'rb') as fh:
-                classifier = load(fh)
+                classifier = clf_load(fh)
                 coeffs = classifier.coef_
                 intercepts = classifier.intercept_
 
@@ -81,6 +96,8 @@ def compute_clf_coef_measures(
     coeffs = classifier.coef_
     intercepts = classifier.intercept_
  
+    measures['coef_sparsity'] = np.mean(coeffs.ravel() == 0)
+
     if hasattr(classifier, 'n_iter_'):
         if isinstance(classifier.n_iter_, (int, float, np.integer)):
             n_iter = classifier.n_iter_
@@ -90,7 +107,20 @@ def compute_clf_coef_measures(
 
         measures['n_iter'] = n_iter
 
-    measures['coef_sparsity'] = np.mean(coeffs.ravel() == 0)
+    if hasattr(classifier, 'train_loss_'):
+        measures['train_loss'] = classifier.train_loss_
+
+    if hasattr(classifier, 'best_loss_'):
+        measures['best_loss'] = classifier.best_loss_
+
+    if hasattr(classifier, 'train_losses_'):
+        measures['train_losses'] = classifier.train_losses_
+
+    if hasattr(classifier, 'val_losses_'):
+        measures['val_losses'] = classifier.val_losses_
+
+    if hasattr(classifier, 'epoch_time_'):
+        measures['epoch_time'] = classifier.epoch_time_
 
     # Prediction on train
     y_train_pred = classifier.predict(X_train)
@@ -133,7 +163,7 @@ def compute_clf_coef_measures(
 
     if save_files:
         with open(clf_file, 'wb') as fh:
-            dump(classifier, fh)
+            clf_save(classifier, fh)
         np.savez(measures_file, measures = measures)
 
     if verbose == 3:
@@ -149,7 +179,7 @@ def compute_clf_coef_measures(
 def average_scores(scores_vc, avrg_metriq):
     n_folds = len(scores_vc)
     moyennes = dict()
-    
+ 
     # Data that we need to fetch and average
     # X_train_sparsity: float
     # X_test_sparsity: float 
@@ -192,13 +222,14 @@ def average_scores(scores_vc, avrg_metriq):
     return mean_std
 
 
-def perform_sk_mlr_cv(
+def perform_mlr_cv(
         classifier,
         clf_name,
         penalty,
         _lambda,
         train_test_data,
         prefix,
+        learning_rate=None,
         metric="fscore",
         average_metric="weighted",
         n_jobs=1,
@@ -211,7 +242,7 @@ def perform_sk_mlr_cv(
     y_train = train_test_data["y_train"]
     X_test = X_train
     y_test = y_train
-    
+ 
     if isinstance(train_test_data["X_test"], (np.ndarray, np.generic)):
         X_test = train_test_data["X_test"]
         y_test = train_test_data["y_test"]
@@ -221,16 +252,43 @@ def perform_sk_mlr_cv(
     ## Compute C of MLR
     n_train_samples = cv_indices[0][0].shape[0] 
 
-    if penalty == "none": 
-        classifier.C = 1.0
-    elif _lambda == 0:
-        classifier.C = np.inf
+    ## MLR hyper-parameters
+    # scikit learn mlr
+    if hasattr(classifier, 'C'):
+        if penalty == "none":
+            # To avoid sklearn warning (_logistic.py#L1504)
+            classifier.C = 1.0
+        elif _lambda == 0:
+            classifier.C = np.inf
+        else:
+            classifier.C = 1./_lambda
+
+    # pytorch mlr
+    elif hasattr(classifier, 'alpha'):
+        if penalty == "none": 
+            classifier.alpha = 0.0
+        else:
+            classifier.alpha = _lambda
     else:
-        classifier.C = 1./(_lambda * n_train_samples)
+        raise ValueError("Classifier does not have C or alpha attributes") 
 
     classifier.penalty = penalty
+
     if penalty == "elasticnet": classifier.l1_ratio = 0.5
 
+    if hasattr(classifier, 'learning_rate'):
+        _lr = classifier.learning_rate
+
+        if learning_rate:
+            classifier.learning_rate = learning_rate
+            _lr = learning_rate
+
+        # add learning rate to clf name 
+        str_lr = format(_lr, '.0e') if _lambda not in list(
+                range(0, 10)) else str(_lr)
+        clf_name += "_LR"+str_lr
+
+    # add lambda to clf name
     if penalty != "none":
         str_lambda = format(_lambda, '.0e') if _lambda not in list(
                 range(0, 10)) else str(_lambda)
@@ -247,7 +305,7 @@ def perform_sk_mlr_cv(
         y_test[test_ind], prefix, return_coefs=False,
         save_files=save_files, verbose=verbose, random_state=random_state) 
         for fold, (train_ind, test_ind) in enumerate(cv_indices))
- 
+
     #print(cv_scores)
     avrg_scores = average_scores(cv_scores, average_metric)
 
