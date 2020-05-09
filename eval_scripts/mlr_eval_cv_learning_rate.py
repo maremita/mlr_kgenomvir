@@ -31,7 +31,8 @@ __author__ = "amine"
 
 """
 The script evaluates the effect of the learning rate (step size)
-on the performance of regularized MLR classifiers for virus genome classification
+on the performance of regularized MLR classifiers for virus genome 
+classification
 """
 
 
@@ -202,9 +203,10 @@ if __name__ == "__main__":
     str_lambda = format(_lambda, '.0e') if _lambda not in list(
             range(0, 10)) else str(_lambda)
 
-    outFile = os.path.join(outdir, "{}_{}_K{}{}_{}{}_LR{}to{}_A{}_LRS".format(
-        virus_name, evalType, tag_kf, klen, tag_fg, mlr_name, lrs_str[0],
-        lrs_str[-1], str_lambda))
+    outFile = os.path.join(outdir,
+            "{}_{}_K{}{}_{}{}_LR{}to{}_A{}_LRS_{}_{}".format(virus_name,
+                evalType, tag_kf, klen, tag_fg, mlr_name, lrs_str[0],
+                lrs_str[-1], str_lambda, eval_metric, avrg_metric))
 
     if saveFiles:
         write_log(scores_dfs, config, outFile+".log")

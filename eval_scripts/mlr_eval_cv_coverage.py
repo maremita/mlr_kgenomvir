@@ -205,9 +205,10 @@ if __name__ == "__main__":
     tag_cov = "FSZ{}_FCV{}to{}_FCL{}".format(str(fragmentSize), 
             coverages_str[0], coverages_str[-1], str(fragmentCount))
 
-    outFile = os.path.join(outdir, "{}_{}_K{}{}_{}_{}{}_A{}_COVERAGES".format(
-        virus_name, evalType, tag_kf, klen, tag_cov,
-        mlr_name, str_lr, str_lambda))
+    outFile = os.path.join(outdir,
+            "{}_{}_K{}{}_{}_{}{}_A{}_COVERAGES_{}_{}".format(virus_name,
+                evalType, tag_kf, klen, tag_cov, mlr_name, str_lr,
+                str_lambda, eval_metric, avrg_metric))
 
     if saveFiles:
         write_log(scores_dfs, config, outFile+".log")

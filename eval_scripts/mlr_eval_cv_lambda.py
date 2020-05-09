@@ -206,9 +206,9 @@ if __name__ == "__main__":
         str_lr = "_LR"+str_lr
 
     outFile = os.path.join(outdir,
-            "{}_{}_K{}{}_{}{}{}_A{}to{}_LAMBDAS".format(virus_name, evalType,
-                tag_kf, klen, tag_fg, mlr_name, str_lr,
-                lambdas_str[0], lambdas_str[-1]))
+            "{}_{}_K{}{}_{}{}{}_A{}to{}_LAMBDAS_{}_{}".format(virus_name,
+                evalType, tag_kf, klen, tag_fg, mlr_name, str_lr,
+                lambdas_str[0], lambdas_str[-1], eval_metric, avrg_metric))
 
     if saveFiles:
         write_log(scores_dfs, config, outFile+".log")
