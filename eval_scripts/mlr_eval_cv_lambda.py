@@ -18,7 +18,7 @@ from pprint import pprint
 import numpy as np
 import pandas as pd
 
-from joblib import Parallel, delayed
+from joblib import Parallel, delayed, dump
 from sklearn.base import clone
 
 # Models to evaluate
@@ -199,12 +199,21 @@ if __name__ == "__main__":
 
     ## Save and Plot results
     ########################
-    outFile = os.path.join(outdir, "{}_{}_K{}{}_{}A{}to{}_{}_LAMBDAS".format(
-        virus_name, evalType, tag_kf, klen, tag_fg, lambdas_str[0],
-        lambdas_str[-1], mlr_name))
+    str_lr = ""
+    if _module == "pytorch_mlr":
+        str_lr = format(_learning_rate, '.0e') if _learning_rate not in list(
+                range(0, 10)) else str(_learning_rate)
+        str_lr = "_LR"+str_lr
+
+    outFile = os.path.join(outdir,
+            "{}_{}_K{}{}_{}{}{}_A{}to{}_LAMBDAS".format(virus_name, evalType,
+                tag_kf, klen, tag_fg, mlr_name, str_lr,
+                lambdas_str[0], lambdas_str[-1]))
 
     if saveFiles:
         write_log(scores_dfs, config, outFile+".log")
+        with open(outFile+".jb", 'wb') as fh:
+            dump(scores_dfs, fh)
 
     plot_cv_figure(scores_dfs, score_names, lambdas_str, "Lambda", 
             outFile)

@@ -18,7 +18,7 @@ from pprint import pprint
 import numpy as np
 import pandas as pd
 
-from joblib import Parallel, delayed
+from joblib import Parallel, delayed, dump
 from sklearn.base import clone
 
 # Models to evaluate
@@ -193,14 +193,26 @@ if __name__ == "__main__":
 
     ## Save and Plot results
     ########################
+    str_lr = ""
+    if _module == "pytorch_mlr":
+        str_lr = format(_learning_rate, '.0e') if _learning_rate not in list(
+                range(0, 10)) else str(_learning_rate)
+        str_lr = "_LR"+str_lr
+
+    str_lambda = format(_lambda, '.0e') if _lambda not in list(
+            range(0, 10)) else str(_lambda)
+
     tag_cov = "FSZ{}_FCV{}to{}_FCL{}".format(str(fragmentSize), 
             coverages_str[0], coverages_str[-1], str(fragmentCount))
 
-    outFile = os.path.join(outdir, "{}_{}_K{}{}_{}_A{}_{}_COVERAGES".format(
-        virus_name, evalType, tag_kf, klen, tag_cov, _lambda, mlr_name))
+    outFile = os.path.join(outdir, "{}_{}_K{}{}_{}_{}{}_A{}_COVERAGES".format(
+        virus_name, evalType, tag_kf, klen, tag_cov,
+        mlr_name, str_lr, str_lambda))
 
     if saveFiles:
         write_log(scores_dfs, config, outFile+".log")
+        with open(outFile+".jb", 'wb') as fh:
+            dump(scores_dfs, fh)
 
     plot_cv_figure(scores_dfs, score_names, coverages_str, "Coverage",
             outFile)

@@ -289,7 +289,7 @@ def perform_mlr_cv(
             _lr = learning_rate
 
         # add learning rate to clf name 
-        str_lr = format(_lr, '.0e') if _lambda not in list(
+        str_lr = format(_lr, '.0e') if _lr not in list(
                 range(0, 10)) else str(_lr)
         clf_name += "_LR"+str_lr
 

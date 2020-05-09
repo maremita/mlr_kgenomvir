@@ -18,7 +18,7 @@ from pprint import pprint
 import numpy as np
 import pandas as pd
 
-from joblib import Parallel, delayed
+from joblib import Parallel, delayed, dump
 from sklearn.base import clone
 
 # Models to evaluate
@@ -199,12 +199,17 @@ if __name__ == "__main__":
 
     ## Save and Plot results
     ########################
-    outFile = os.path.join(outdir, "{}_{}_K{}{}_{}LR{}to{}_A{}_{}_LRS".format(
-        virus_name, evalType, tag_kf, klen, tag_fg, lrs_str[0],
-        lrs_str[-1], _lambda, mlr_name))
+    str_lambda = format(_lambda, '.0e') if _lambda not in list(
+            range(0, 10)) else str(_lambda)
+
+    outFile = os.path.join(outdir, "{}_{}_K{}{}_{}{}_LR{}to{}_A{}_LRS".format(
+        virus_name, evalType, tag_kf, klen, tag_fg, mlr_name, lrs_str[0],
+        lrs_str[-1], str_lambda))
 
     if saveFiles:
         write_log(scores_dfs, config, outFile+".log")
+        with open(outFile+".jb", 'wb') as fh:
+            dump(scores_dfs, fh)
 
     plot_cv_figure(scores_dfs, score_names, lrs_str, "Learning rate", 
             outFile)

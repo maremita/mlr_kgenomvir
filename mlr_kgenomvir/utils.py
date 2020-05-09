@@ -38,7 +38,7 @@ def get_module_versions():
 
     versions["python"] = platform.python_version()
 
-    module_names = ["python", "mlr_kgenomvir", "numpy", "scipy", "pandas", 
+    module_names = ["mlr_kgenomvir", "numpy", "scipy", "pandas", 
             "sklearn", "Bio", "joblib", "matplotlib", "torch"]
 
     for module_name in module_names:
