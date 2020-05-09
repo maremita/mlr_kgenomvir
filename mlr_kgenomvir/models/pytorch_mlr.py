@@ -271,7 +271,12 @@ class MLR(BaseEstimator, ClassifierMixin):
         # Gether some relevant attributes 
         self.epoch_time_ = end - start
         self.train_loss_ = train_loss.item()
-        self.best_loss_ = best_loss.item()
+        
+        if isinstance(best_loss, torch.Tensor):
+            self.best_loss_ = best_loss.item()
+        else:
+            self.best_loss_ = best_loss
+
         self.n_iter_ = n_iter
 
         if self.keep_losses:

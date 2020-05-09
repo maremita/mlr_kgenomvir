@@ -4,7 +4,11 @@ from collections import defaultdict
 import time
 
 import numpy as np
+import pandas as pd
 import scipy.sparse as sp
+
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 
 from sklearn.base import clone
 from sklearn.metrics import classification_report
@@ -74,7 +78,7 @@ def compute_clf_coef_measures(
             return measures
 
     measures['model_name'] = clf_name
-    
+
     if sp.issparse(X_train):
         measures['X_train_sparsity'] = np.mean(X_train.todense().ravel() == 0)
         measures['X_test_sparsity'] = np.mean(X_test.todense().ravel() == 0)
@@ -92,7 +96,7 @@ def compute_clf_coef_measures(
     classifier.fit(X_train, y_train)
     end = time.time()
     measures["fit_time"] = end - start
-    
+ 
     coeffs = classifier.coef_
     intercepts = classifier.intercept_
  
@@ -189,28 +193,29 @@ def average_scores(scores_vc, avrg_metriq):
     # score_time : float 
     # train_scores: dict
     # test_scores: dict
-    
+    # train_loss: float
+ 
     score_labels = ["X_train_sparsity", "X_test_sparsity", "fit_time",
             "n_iter", "coef_sparsity", "score_time", "train_scores", 
-            "test_scores"]
+            "test_scores", "train_loss"]
 
     # Fetch score data to rearrange
     scores_tmp = defaultdict(list)
 
     for score_dict in scores_vc:
         for label in score_labels:
-            if label not in ["train_scores", "test_scores"]:
-                # score_dict[label] is a float or int value
-                scores_tmp[label].append(score_dict[label])
-
-            else:
-                # score_dict[label] is a dict of several averages
-                trorts = label.split("_")[0]
-                for metriq in score_dict[label][avrg_metriq]:
-                    new_label = "{}_{}_{}".format(trorts, avrg_metriq,
-                            metriq)
-                    scores_tmp[new_label].append(
-                            score_dict[label][avrg_metriq][metriq])
+            if label in score_dict:
+                if label in ["train_scores", "test_scores"]:
+                    # score_dict[label] is a dict of several averages
+                    trorts = label.split("_")[0]
+                    for metriq in score_dict[label][avrg_metriq]:
+                        new_label = "{}_{}_{}".format(trorts, avrg_metriq,
+                                metriq)
+                        scores_tmp[new_label].append(
+                                score_dict[label][avrg_metriq][metriq])
+                else: 
+                    # score_dict[label] is a float or int value
+                    scores_tmp[label].append(score_dict[label])
 
     # Compute mean and std
     mean_std = dict() 
@@ -310,4 +315,119 @@ def perform_mlr_cv(
     avrg_scores = average_scores(cv_scores, average_metric)
 
     return avrg_scores
+
+
+def compile_score_names(eval_metric, avrg_metric):
+    names = []
+    if eval_metric == "all":
+        names = ["test_{}_precision".format(avrg_metric), 
+                "test_{}_recall".format(avrg_metric), 
+                "test_{}_fscore".format(avrg_metric)]
+    else:
+        names = ["train_{}_{}".format(avrg_metric, eval_metric),
+                "test_{}_{}".format(avrg_metric, eval_metric)]
+
+    names.extend(["coef_sparsity", "convergence", "X_train_sparsity", "train_loss"])
+
+    return names
+
+
+def make_clf_score_dataframes(clf_covs, rows, nom_scores, max_iter):
+    # rows are main evaluation hyperparams (coverage|lambda|k|learning_rate) 
+    # columns are score_names 
+    df_scores = defaultdict(dict)
+
+    for clf_name in clf_covs:
+        df_mean = pd.DataFrame(index=rows, columns=nom_scores)
+        df_std = pd.DataFrame(index=rows, columns=nom_scores)
+
+        for row in rows:
+            scores = clf_covs[clf_name][row]
+            for score_name in nom_scores:
+                if score_name in scores:
+                    df_mean.loc[row, score_name] = scores[score_name][0]
+                    df_std.loc[row, score_name] = scores[score_name][1]
+
+                elif score_name == "convergence":
+                    df_mean.loc[row,score_name] = scores["n_iter"][0]/max_iter
+                    df_std.loc[row, score_name] = scores["n_iter"][1]/max_iter
+
+        df_scores[clf_name]["mean"] = df_mean.astype(np.float)
+        df_scores[clf_name]["std"] = df_std.astype(np.float)
+
+    return df_scores
+
+
+def plot_cv_figure(scores, score_labels, x_values, xlabel,  out_file):
+    fig_format = "png"
+    #fig_format = "eps"
+    fig_dpi = 150
+
+    fig_file = out_file+"."+fig_format
+    fig_title = os.path.splitext((os.path.basename(fig_file)))[0]
+    
+    nb_clfs = len(scores)
+
+    cmap = cm.get_cmap('tab20')
+    colors = [cmap(j/20) for j in range(0,20)]
+
+    styles = ["s-","o-","d-.","^-.","x-","h-","<-",">-","*-","p-"]
+    sizefont = 12
+
+    f, axs = plt.subplots(1, nb_clfs, figsize=(8*nb_clfs, 5))
+
+    plt.rcParams.update({'font.size':sizefont})
+    plt.subplots_adjust(wspace=0.12, hspace=0.1)
+
+    line_scores = [l for l in score_labels if "X" not in l and l != "train_loss"]
+    area_scores = [l for l in score_labels if "X" in l] 
+
+    ind = 0
+    for i_c, classifier in enumerate(scores):
+        df_mean = scores[classifier]["mean"]
+        df_std = scores[classifier]["std"]
+
+        dfl_mean = df_mean[line_scores]
+        dfl_std = df_std[line_scores]
+
+        dfa_mean = df_mean[area_scores]
+        dfa_std = df_std[area_scores]
+
+        p = dfl_mean.plot(kind='line', ax=axs[ind], style=styles, 
+                fontsize=sizefont, markersize=8)
+
+        dfa_mean.plot(kind='area', ax=axs[ind], alpha=0.2, color="gray",
+                fontsize=sizefont)
+
+        # For ESP transparent rendering
+        p.set_rasterization_zorder(0)
+
+        xticks = [j for j in range(len(x_values))]
+        xticks = np.array(xticks)
+ 
+        p.set_title(classifier)
+        p.set_xticks(xticks)
+        p.set_xticklabels(x_values, fontsize=sizefont)
+        p.set_ylim([-0.05, 1.05])
+        p.set_xlabel(xlabel, fontsize=sizefont+1) # 'Coverage'
+
+        zo = -ind
+        for score_name in dfl_mean:
+            m = dfl_mean[score_name]
+            s = dfl_std[score_name]
+
+            p.fill_between(xticks, m-s, m+s, alpha=0.1, zorder=zo)
+            zo -= 1
+
+        p.get_legend().remove()
+        p.grid()
+        ind += 1
+    
+    # print legend for the last subplot
+    p.legend(loc='upper left', fancybox=True, shadow=True, 
+            bbox_to_anchor=(1.01, 1.02))
+
+    plt.suptitle(fig_title)
+    plt.savefig(fig_file, bbox_inches="tight",
+            format=fig_format, dpi=fig_dpi)
 
