@@ -9,8 +9,5 @@
 #################################
 
 __author__ = "Amine Remita"
-__date__   = "20200514"
-__version__ = "0.8.8"
 
-__all__ = ['data', 'models', 'utils']
-
+__all__ = ["model_evaluation", "pytorch_mlr"]
