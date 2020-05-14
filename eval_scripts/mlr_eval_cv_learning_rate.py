@@ -91,6 +91,7 @@ if __name__ == "__main__":
     nJobs = config.getint("settings", "n_jobs")
     verbose = config.getint("settings", "verbose")
     saveFiles = config.getboolean("settings", "save_files")
+    plotResults = config.getboolean("settings", "plot_results")
     randomState = config.getint("settings", "random_state")
 
     if evalType in ["CC", "CF", "FF"]:
@@ -213,5 +214,6 @@ if __name__ == "__main__":
         with open(outFile+".jb", 'wb') as fh:
             dump(scores_dfs, fh)
 
-    plot_cv_figure(scores_dfs, score_names, lrs_str, "Learning rate", 
-            outFile)
+    if plotResults:
+        plot_cv_figure(scores_dfs, score_names, lrs_str, "Learning rate", 
+                outFile)
