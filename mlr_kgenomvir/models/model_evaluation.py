@@ -30,7 +30,8 @@ def compute_clf_coef_measures(
         y_test,
         prefix,
         return_coefs=True,
-        save_files=True,
+        save_model=False,
+        save_result=False,
         verbose=0,
         random_state=42):
 
@@ -53,18 +54,29 @@ def compute_clf_coef_measures(
     clf_file = prefix+clf_name+clf_ext
     measures_file = prefix+clf_name+".npz"
 
-    if save_files and os.path.isfile(clf_file) and\
-            os.path.isfile(measures_file):
+    ## Try to load the model and results from files
+    ## ############################################
+    # Load model
+    load_model = False
+    if os.path.isfile(clf_file) and save_model and return_coefs:
 
         if verbose:
-            print("\nLoading classifier and measures from {} files".format(
-                prefix+clf_name), flush=True)
+            print("\nLoading classifier from {} file".format(
+                clf_file), flush=True)
 
         if return_coefs:
             with open(clf_file, 'rb') as fh:
                 classifier = clf_load(fh)
                 coeffs = classifier.coef_
                 intercepts = classifier.intercept_
+                load_model = True
+
+    # Load results
+    if os.path.isfile(measures_file) and save_result:
+
+        if verbose:
+            print("\nLoading measures from {} file".format(
+                measures_file), flush=True)
 
         with np.load(measures_file, allow_pickle=True) as f:
             measures = f['measures'].tolist()
@@ -72,11 +84,13 @@ def compute_clf_coef_measures(
             if verbose == 3:
                 pprint(measures)
 
-        if return_coefs:
+        if load_model:
             return coeffs, intercepts, measures
         else:
             return measures
 
+    ## Compute the model and the results
+    ## #################################
     measures['model_name'] = clf_name
 
     if sp.issparse(X_train):
@@ -165,9 +179,11 @@ def compute_clf_coef_measures(
     report = classification_report(y_test, y_pred, output_dict=True)
     measures["report"] = report 
 
-    if save_files:
+    if save_model:
         with open(clf_file, 'wb') as fh:
             clf_save(classifier, fh)
+
+    if save_result:
         np.savez(measures_file, measures = measures)
 
     if verbose == 3:
@@ -238,7 +254,8 @@ def perform_mlr_cv(
         metric="fscore",
         average_metric="weighted",
         n_jobs=1,
-        save_files=False,
+        save_model=False,
+        save_result=False,
         verbose=0,
         random_state=42):
 
@@ -308,7 +325,8 @@ def perform_mlr_cv(
         clone(classifier), clf_name+"_fold{}".format(fold),
         X_train[train_ind], X_test[test_ind], y_train[train_ind],
         y_test[test_ind], prefix, return_coefs=False,
-        save_files=save_files, verbose=verbose, random_state=random_state) 
+        save_model=save_model, save_result=save_result, verbose=verbose,
+        random_state=random_state) 
         for fold, (train_ind, test_ind) in enumerate(cv_indices))
 
     #print(cv_scores)

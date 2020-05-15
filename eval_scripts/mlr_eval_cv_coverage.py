@@ -93,7 +93,9 @@ if __name__ == "__main__":
     # settings 
     nJobs = config.getint("settings", "n_jobs")
     verbose = config.getint("settings", "verbose")
-    saveFiles = config.getboolean("settings", "save_files")
+    saveData = config.getboolean("settings", "save_data")
+    saveModels = config.getboolean("settings", "save_models")
+    saveResults = config.getboolean("settings", "save_results")
     plotResults = config.getboolean("settings", "plot_results")
     randomState = config.getint("settings", "random_state")
 
@@ -170,6 +172,7 @@ if __name__ == "__main__":
                 fragment_count=fragmentCount,
                 n_splits=cv_folds,
                 test_size=testSize,
+                save_data=saveData,
                 random_state=randomState,
                 verbose=verbose)
 
@@ -177,7 +180,8 @@ if __name__ == "__main__":
 
         mlr_scores = parallel(delayed(perform_mlr_cv)(clone(mlr), clf_name,
             clf_penalty, _lambda, cv_data, prefix_out, metric=eval_metric,
-            average_metric=avrg_metric, n_jobs=cv_folds, save_files=saveFiles,
+            average_metric=avrg_metric, n_jobs=cv_folds,
+            save_model=saveModels, save_result=saveResults, 
             verbose=verbose, random_state=randomState)
             for clf_name, clf_penalty in zip(clf_names, clf_penalties))
         #print(mlr_scores)
@@ -211,7 +215,7 @@ if __name__ == "__main__":
                 evalType, tag_kf, klen, tag_cov, mlr_name, str_lr,
                 str_lambda, eval_metric, avrg_metric))
 
-    if saveFiles:
+    if saveResults:
         write_log(scores_dfs, config, outFile+".log")
         with open(outFile+".jb", 'wb') as fh:
             dump(scores_dfs, fh)

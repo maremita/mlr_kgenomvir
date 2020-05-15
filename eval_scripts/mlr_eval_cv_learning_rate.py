@@ -90,7 +90,9 @@ if __name__ == "__main__":
     # settings 
     nJobs = config.getint("settings", "n_jobs")
     verbose = config.getint("settings", "verbose")
-    saveFiles = config.getboolean("settings", "save_files")
+    saveData = config.getboolean("settings", "save_data")
+    saveModels = config.getboolean("settings", "save_models")
+    saveResults = config.getboolean("settings", "save_results")
     plotResults = config.getboolean("settings", "plot_results")
     randomState = config.getint("settings", "random_state")
 
@@ -165,6 +167,7 @@ if __name__ == "__main__":
             full_kmers=fullKmers, 
             n_splits=cv_folds,
             test_size=testSize,
+            save_data=saveData,
             random_state=randomState,
             verbose=verbose,
             **args_fg)
@@ -190,7 +193,8 @@ if __name__ == "__main__":
         mlr_scores = parallel(delayed(perform_mlr_cv)(clone(mlr), clf_name,
             clf_penalty, _lambda, cv_data, prefix_out, learning_rate=_lr,
             metric=eval_metric, average_metric=avrg_metric, n_jobs=cv_folds,
-            save_files=saveFiles, verbose=verbose, random_state=randomState)
+            save_model=saveModels, save_result=saveResults, 
+            verbose=verbose, random_state=randomState)
             for _lr in lrs)
 
         for j, lr_str in enumerate(lrs_str):
@@ -209,7 +213,7 @@ if __name__ == "__main__":
                 evalType, tag_kf, klen, tag_fg, mlr_name, lrs_str[0],
                 lrs_str[-1], str_lambda, eval_metric, avrg_metric))
 
-    if saveFiles:
+    if saveResults:
         write_log(scores_dfs, config, outFile+".log")
         with open(outFile+".jb", 'wb') as fh:
             dump(scores_dfs, fh)
