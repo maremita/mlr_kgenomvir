@@ -88,7 +88,8 @@ if __name__ == "__main__":
         _device = config.get("classifier", "device")
 
     # settings 
-    nJobs = config.getint("settings", "n_jobs")
+    n_mainJobs = config.getint("settings", "n_main_jobs")
+    n_cvJobs = config.getint("settings", "n_cv_jobs")
     verbose = config.getint("settings", "verbose")
     saveData = config.getboolean("settings", "save_data")
     saveModels = config.getboolean("settings", "save_models")
@@ -184,7 +185,7 @@ if __name__ == "__main__":
     clf_scores = defaultdict(dict)
     score_names = compile_score_names(eval_metric, avrg_metric)
 
-    parallel = Parallel(n_jobs=nJobs, prefer="processes", verbose=verbose)
+    parallel = Parallel(n_jobs=n_mainJobs, prefer="processes", verbose=verbose)
 
     for i, (clf_name, clf_penalty) in enumerate(zip(clf_names,clf_penalties)):
         if verbose:
@@ -192,7 +193,7 @@ if __name__ == "__main__":
  
         mlr_scores = parallel(delayed(perform_mlr_cv)(clone(mlr), clf_name,
             clf_penalty, _lambda, cv_data, prefix_out, learning_rate=_lr,
-            metric=eval_metric, average_metric=avrg_metric, n_jobs=cv_folds,
+            metric=eval_metric, average_metric=avrg_metric, n_jobs=n_cvJobs,
             save_model=saveModels, save_result=saveResults, 
             verbose=verbose, random_state=randomState)
             for _lr in lrs)

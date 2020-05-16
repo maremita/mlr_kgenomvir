@@ -137,6 +137,8 @@ def build_load_save_cv_data(
 
         data = load_Xy_cv_data(Xy_cvFile)
 
+        if verbose: print("Done.", flush=True)
+
     else:
         if verbose:
             print("\nGenerating data of {} with k {}".format(
@@ -160,5 +162,6 @@ def build_load_save_cv_data(
         if save_data:
             save_Xy_cv_data(data, Xy_cvFile)
 
-    return data
+        if verbose: print("Done.", flush=True)
 
+    return data

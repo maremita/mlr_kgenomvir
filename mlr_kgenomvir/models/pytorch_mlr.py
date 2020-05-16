@@ -63,7 +63,7 @@ class MLR(BaseEstimator, ClassifierMixin):
             learning_rate=0.001, fit_intercept=True, solver='sgd', 
             class_weight=None, max_iter=100, validation=False,
             n_iter_no_change=5, keep_losses=True, n_jobs=0,
-            device='cpu', random_state=None, verbose=0):
+            device='cpu', random_state=None, verbose=0, model_name="PTMLR"):
 
         self.penalty = penalty
         self.tol = tol
@@ -81,6 +81,7 @@ class MLR(BaseEstimator, ClassifierMixin):
         self.device = device
         self.keep_losses = keep_losses
         self.verbose = verbose
+        self.model_name=model_name
 
     def fit(self, X, y):
 
@@ -245,8 +246,8 @@ class MLR(BaseEstimator, ClassifierMixin):
                 if no_improvement_count >= self.n_iter_no_change:
 
                     if self.verbose:
-                        print("\nConvergence after {} epochs".format(epoch+1),
-                                flush=True)
+                        print("\nConvergence of {} after {} epochs".format(
+                            self.model_name, epoch+1), flush=True)
                     break
 
                 elif self.verbose == 2:
@@ -266,7 +267,8 @@ class MLR(BaseEstimator, ClassifierMixin):
         end = time.time()
 
         if self.verbose and n_iter >= self.max_iter:
-            print("max_iter {} is reached".format(n_iter), flush=True)
+            print("max_iter {} is reached for {}".format(n_iter, 
+                self.model_name), flush=True)
 
         # Gether some relevant attributes 
         self.epoch_time_ = end - start

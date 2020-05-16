@@ -91,6 +91,7 @@ def compute_clf_coef_measures(
 
     ## Compute the model and the results
     ## #################################
+    classifier.model_name = clf_name
     measures['model_name'] = clf_name
 
     if sp.issparse(X_train):

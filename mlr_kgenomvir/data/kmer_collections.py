@@ -95,7 +95,7 @@ class FullKmersCollection(KmersCollection):
         #
         self.ids = []
         self.v_size = np.power(len(self.alphabet), self.k)
-        self.data = np.zeros((len(sequences), self.v_size)).astype(self.dtype)
+        self.data = np.zeros((len(sequences), self.v_size), dtype=self.dtype)
         self.kmers_list = ["".join(t) for t in product(alphabet, repeat=k)]
         #
         self._compute_kmers(sequences)
@@ -169,7 +169,7 @@ class GivenKmersCollection(KmersCollection):
         #
         self.ids = []
         self.v_size = len(self.kmers_list)
-        self.data = np.zeros((len(sequences), self.v_size)).astype(self.dtype)
+        self.data = np.zeros((len(sequences), self.v_size), dtype=self.dtype)
         #
         self._compute_kmers(sequences)
         self._convert_to_sparse_matrix()
