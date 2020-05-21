@@ -62,7 +62,8 @@ if __name__ == "__main__":
 
     # seq_rep
     klen = config.getint("seq_rep", "k")
-    fullKmers = config.getboolean("seq_rep", "full_kmers") 
+    fullKmers = config.getboolean("seq_rep", "full_kmers")
+    lowVarThreshold = config.get("seq_rep", "low_var_threshold", fallback=None)
     fragmentSize = config.getint("seq_rep", "fragment_size")
     fragmentCount = config.getint("seq_rep", "fragment_count")
     # ........ main evaluation parameters ..............
@@ -103,9 +104,18 @@ if __name__ == "__main__":
     if evalType not in ["CF", "FF"]:
         raise ValueError(
                 "evalType argument have to be one of CF or FF values")
+ 
+    # Check lowVarThreshold
+    # #####################
+    if lowVarThreshold == "None":
+        lowVarThreshold = None
+    else:
+        lowVarThreshold = float(lowVarThreshold)
 
     if fullKmers:
         tag_kf = "F"
+    elif lowVarThreshold:
+        tag_kf = "V"
     else:
         tag_kf = "S"
 
@@ -167,7 +177,8 @@ if __name__ == "__main__":
                 prefix_out,
                 eval_type=evalType,
                 k=klen,
-                full_kmers=fullKmers, 
+                full_kmers=fullKmers,
+                low_var_threshold=lowVarThreshold,
                 fragment_size=fragmentSize,
                 fragment_cov=coverage,
                 fragment_count=fragmentCount,

@@ -7,9 +7,12 @@ from itertools import product
 
 import numpy as np
 from scipy.sparse import csr_matrix, csc_matrix
+from sklearn.feature_selection import VarianceThreshold
+
 
 __all__ = [ 'FullKmersCollection', 'SeenKmersCollection', 
-        'GivenKmersCollection' , 'build_kmers', 'build_kmers_Xy_data']
+        'GivenKmersCollection' , 'VarKmersCollection',
+        'build_kmers', 'build_kmers_Xy_data']
 
 __author__ = "amine"
 
@@ -150,9 +153,27 @@ class SeenKmersCollection(KmersCollection):
         self.v_size = len(self.kmers_list)
 
         # Convert to numpy
-        self.data = np.array([ self.dict_data[x] for x in self.dict_data ], dtype=self.dtype).T
+        self.data = np.array([ self.dict_data[x] for x in self.dict_data ],
+                dtype=self.dtype).T
 
         return self
+
+
+class VarKmersCollection(SeenKmersCollection):
+
+    def __init__(self, sequences, low_var_threshold=0.0, k=5, sparse=None,
+            dtype=np.uint64, alphabet="ACGT"): 
+        super().__init__(sequences, k=k, sparse=sparse,
+                dtype=dtype, alphabet=alphabet)
+
+        # Kmer selection based on variance
+        selection = VarianceThreshold(threshold=low_var_threshold)
+        self.data = selection.fit_transform(self.data)
+
+        # update kmer list
+        self.v_size = self.data.shape[1]
+        _support = selection.get_support()
+        self.kmers_list = [ kmer for i, kmer in enumerate(self.kmers_list) if _support[i] ]
 
 
 class GivenKmersCollection(KmersCollection):
@@ -194,22 +215,27 @@ class GivenKmersCollection(KmersCollection):
 # Data build functions
 # ####################
 
-def build_kmers(seq_data, k, full_kmers=False, sparse=None,
-        dtype=np.uint64):
+def build_kmers(seq_data, k, full_kmers=False, low_var_threshold=None, 
+        sparse=None, dtype=np.uint64):
 
     if full_kmers:
         return FullKmersCollection(
                 seq_data, k=k, sparse=sparse, dtype=dtype)
 
+    elif low_var_threshold:
+        return VarKmersCollection(
+                seq_data, low_var_threshold=low_var_threshold,
+                k=k, sparse=sparse, dtype=dtype)
     else:
         return SeenKmersCollection(
                 seq_data, k=k, sparse=sparse, dtype=dtype)
 
 
-def build_kmers_Xy_data(seq_data, k, full_kmers=False, sparse=None,
-        dtype=np.uint64):
+def build_kmers_Xy_data(seq_data, k, full_kmers=False, low_var_threshold=None,
+        sparse=None, dtype=np.uint64):
 
-    X_data = build_kmers(seq_data, k, full_kmers, sparse, dtype).data
+    X_data = build_kmers(seq_data, k, full_kmers, low_var_threshold, 
+            sparse, dtype).data
     y_data = np.asarray(seq_data.labels)
 
     return X_data, y_data

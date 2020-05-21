@@ -62,6 +62,7 @@ if __name__ == "__main__":
     # seq_rep
     klen = config.getint("seq_rep", "k")
     fullKmers = config.getboolean("seq_rep", "full_kmers") 
+    lowVarThreshold = config.get("seq_rep", "low_var_threshold", fallback=None)
 
     # evaluation
     evalType = config.get("evaluation", "eval_type") # CF or FF only
@@ -109,10 +110,19 @@ if __name__ == "__main__":
         raise ValueError("evalType argument have to be one of CC, CF or"+
                 " FF values")
 
+    # Check lowVarThreshold
+    # #####################
+    if lowVarThreshold == "None":
+        lowVarThreshold = None
+    else:
+        lowVarThreshold = float(lowVarThreshold)
+
     # Construct prefix for output files
     ###################################
     if fullKmers:
         tag_kf = "F"
+    elif lowVarThreshold:
+        tag_kf = "V"
     else:
         tag_kf = "S"
 
@@ -165,6 +175,7 @@ if __name__ == "__main__":
             eval_type=evalType,
             k=klen,
             full_kmers=fullKmers, 
+            low_var_threshold=lowVarThreshold,
             n_splits=cv_folds,
             test_size=testSize,
             save_data=saveData,
