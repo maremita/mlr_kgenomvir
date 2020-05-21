@@ -14,9 +14,10 @@ __author__ = "amine"
 
 def build_cv_data(
         seq_data,
+        eval_type="CC",
         k=4,
         full_kmers=False,
-        eval_type="CC",
+        low_var_threshold=None,
         fragment_size=100,
         fragment_cov=2,
         fragment_count=1,
@@ -44,7 +45,8 @@ def build_cv_data(
                 seq_data = seq_data.stratified_sample(fragment_count)
 
         X_train, y_train = build_kmers_Xy_data(seq_data, k,
-                full_kmers=full_kmers, dtype=np.int32)
+                full_kmers=full_kmers, low_var_threshold=low_var_threshold, 
+                dtype=np.int32)
         X_test = "X_train"  # a flag only
         y_test = "y_train"  # a flag only
 
@@ -52,7 +54,7 @@ def build_cv_data(
 
         # Build Train data from complete sequence
         X_train_kmer = build_kmers(seq_data, k, full_kmers=full_kmers,
-                dtype=np.int32)
+                low_var_threshold=low_var_threshold, dtype=np.int32)
 
         X_train = X_train_kmer.data
         y_train = np.asarray(seq_data.labels)
@@ -116,6 +118,7 @@ def build_load_save_cv_data(
         eval_type="CC", 
         k=4,
         full_kmers=False, 
+        low_var_threshold=None,
         fragment_size=1000,
         fragment_cov=2,
         fragment_count=100,
@@ -148,9 +151,10 @@ def build_load_save_cv_data(
 
         data = build_cv_data(
                 seq_data,
+                eval_type,
                 k,
                 full_kmers,
-                eval_type,
+                low_var_threshold,
                 fragment_size,
                 fragment_cov,
                 fragment_count,
