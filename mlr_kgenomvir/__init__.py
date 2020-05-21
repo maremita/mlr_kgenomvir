@@ -10,7 +10,7 @@
 
 __author__ = "Amine Remita"
 __date__   = "20200521"
-__version__ = "0.8.9.5"
+__version__ = "0.9.0"
 
 __all__ = ['data', 'models', 'utils']
 

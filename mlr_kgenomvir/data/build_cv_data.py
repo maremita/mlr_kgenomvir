@@ -121,7 +121,7 @@ def build_load_save_cv_data(
         low_var_threshold=None,
         fragment_size=1000,
         fragment_cov=2,
-        fragment_count=100,
+        fragment_count=1000,
         n_splits=3,
         test_size=0.3,
         save_data=False,
