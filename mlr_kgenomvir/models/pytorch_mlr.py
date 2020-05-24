@@ -93,14 +93,15 @@ class MLR(BaseEstimator, ClassifierMixin):
         # TODO
         # Check validation value
 
-        self.y_encoder = LabelEncoder()
-        encoded_y = self.y_encoder.fit_transform(y).astype(np.long,
-                copy=False)
-
         if not isinstance(X, torch.FloatTensor):
             X = torch.from_numpy(X).float()
 
         X = X.to(self.device_)
+
+        self.y_encoder = LabelEncoder()
+        encoded_y = self.y_encoder.fit_transform(y).astype(np.long,
+                copy=False)
+
         encoded_y = torch.from_numpy(encoded_y).long().to(self.device_)
 
         # Store the classes seen during fit

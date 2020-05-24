@@ -5,6 +5,7 @@ import importlib
 
 import numpy as np
 import scipy
+import scipy.sparse as sp
 
 
 __author__ = "amine"
@@ -73,3 +74,24 @@ def write_log(results, args, out_file):
 
         f.write("Package versions\n################\n\n")
         pprint(get_module_versions(), stream=f)
+
+
+# Descriptive stats of np matrix
+def get_stats(mat):
+    chaine = "It is not numpy.ndarray. Stats wont be calculated\n"
+
+    if isinstance(mat, np.ndarray) or sp.issparse(mat):
+        chaine = "\tShape {}\n".format(mat.shape)
+        chaine += "\tMemory ~{} MB\n".format(mat.nbytes/1e6) #approximation 
+
+        if sp.issparse(mat):
+            chaine += "\tSparsity {}\n".format(np.mean(mat.todense().ravel() == 0))
+        else:
+            chaine += "\tSparsity {}\n".format(np.mean(mat.ravel() == 0))
+
+        feat_vars = mat.var(axis=0)
+        chaine += "\tMean of feature variances {}\n".format(feat_vars.mean())
+        chaine += "\tVariance of feature variances {}\n".format(feat_vars.var())
+        #chaine += "\tFlags\n{}\n".format(mat.flags)
+
+    return chaine

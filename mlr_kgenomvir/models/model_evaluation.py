@@ -265,7 +265,7 @@ def perform_mlr_cv(
     y_train = train_test_data["y_train"]
     X_test = X_train
     y_test = y_train
- 
+
     if isinstance(train_test_data["X_test"], (np.ndarray, np.generic)):
         X_test = train_test_data["X_test"]
         y_test = train_test_data["y_test"]

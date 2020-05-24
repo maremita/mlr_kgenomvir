@@ -6,6 +6,7 @@ from mlr_kgenomvir.models.model_evaluation import compile_score_names
 from mlr_kgenomvir.models.model_evaluation import make_clf_score_dataframes
 from mlr_kgenomvir.models.model_evaluation import plot_cv_figure
 from mlr_kgenomvir.utils import str_to_list
+from mlr_kgenomvir.utils import get_stats
 from mlr_kgenomvir.utils import write_log
 
 import sys
@@ -203,6 +204,10 @@ if __name__ == "__main__":
 
         cv_data = tt_data["data"]
 
+        if verbose:
+            print("X_train descriptive stats:\n{}".format(
+                get_stats(cv_data["X_train"])))
+
         mlr_scores = parallel(delayed(perform_mlr_cv)(clone(mlr), clf_name,
             clf_penalty, _lambda, cv_data, prefix_out, metric=eval_metric,
             average_metric=avrg_metric, n_jobs=n_cvJobs, 
@@ -245,3 +250,6 @@ if __name__ == "__main__":
     if plotResults:
         plot_cv_figure(scores_dfs, score_names, klen_list_str, "K length", 
                 outFile)
+
+    if verbose:
+        print("\nFin normale du programme")

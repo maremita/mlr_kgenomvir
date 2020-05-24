@@ -97,9 +97,10 @@ def build_cv_data(
     # Settings 
     # (maybe another way to fetch arguments and add them to the dict directly)
     ret_data["settings"] = dict()
+    ret_data["settings"]["eval_type"] = eval_type
     ret_data["settings"]["k"] = k
     ret_data["settings"]["full_kmers"] = full_kmers
-    ret_data["settings"]["eval_type"] = eval_type
+    ret_data["settings"]["low_var_threshold"] = low_var_threshold
     ret_data["settings"]["fragment_size"] = fragment_size
     ret_data["settings"]["fragment_cov"] = fragment_cov
     ret_data["settings"]["fragment_count"] = fragment_count
