@@ -20,6 +20,7 @@ setup(
     scripts=['eval_scripts/mlr_eval_cv_coverage.py',
         'eval_scripts/mlr_eval_cv_klen.py',
         'eval_scripts/mlr_eval_cv_lambda.py',
-        'eval_scripts/mlr_eval_cv_learning_rate.py'],
+        'eval_scripts/mlr_eval_cv_learning_rate.py',
+        'report_scripts/plot_cv_klen.py'],
     install_requires=INSTALL_REQUIRES
 )

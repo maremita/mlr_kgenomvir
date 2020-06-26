@@ -68,7 +68,7 @@ if __name__ == "__main__":
     lowVarThreshold = config.get("seq_rep", "low_var_threshold", fallback=None)
 
     # evaluation
-    evalType = config.get("evaluation", "eval_type") # CF or FF only
+    evalType = config.get("evaluation", "eval_type") # CC, CF or FF
     testSize = config.getfloat("evaluation", "test_size") 
     cv_folds = config.getint("evaluation", "cv_folds") 
     eval_metric = config.get("evaluation", "eval_metric")

@@ -64,12 +64,11 @@ def compute_clf_coef_measures(
             print("\nLoading classifier from {} file".format(
                 clf_file), flush=True)
 
-        if return_coefs:
-            with open(clf_file, 'rb') as fh:
-                classifier = clf_load(fh)
-                coeffs = classifier.coef_
-                intercepts = classifier.intercept_
-                load_model = True
+        with open(clf_file, 'rb') as fh:
+            classifier = clf_load(fh)
+            coeffs = classifier.coef_
+            intercepts = classifier.intercept_
+            load_model = True
 
     # Load results
     if os.path.isfile(measures_file) and save_result:
@@ -331,6 +330,53 @@ def perform_mlr_cv(
         for fold, (train_ind, test_ind) in enumerate(cv_indices))
 
     #print(cv_scores)
+    avrg_scores = average_scores(cv_scores, average_metric)
+
+    return avrg_scores
+
+
+def get_mlr_cv_from_files(
+        clf_name,
+        penalty,
+        _lambda,
+        prefix,
+        folds,
+        learning_rate=None,
+        metric="fscore",
+        average_metric="weighted",
+        verbose=0):
+
+    if learning_rate:
+        _lr = learning_rate
+
+        # add learning rate to clf name 
+        str_lr = format(_lr, '.0e') if _lr not in list(
+                range(0, 10)) else str(_lr)
+        clf_name += "_LR"+str_lr
+
+    # add lambda to clf name
+    if penalty != "none":
+        str_lambda = format(_lambda, '.0e') if _lambda not in list(
+                range(0, 10)) else str(_lambda)
+        clf_name += "_A"+str_lambda
+
+    cv_scores = list()
+
+    for fold in range(folds):
+
+        measures_file = prefix+clf_name+"_fold{}.npz".format(fold)
+        # Load results
+        if os.path.isfile(measures_file):
+            if verbose:
+                print("\nLoading measures from {} file".format(
+                    measures_file), flush=True)
+
+            with np.load(measures_file, allow_pickle=True) as f:
+                measures = f['measures'].tolist()
+                cv_scores.append(measures)
+        else:
+            raise FileNotFoundError(measures_file)
+
     avrg_scores = average_scores(cv_scores, average_metric)
 
     return avrg_scores
