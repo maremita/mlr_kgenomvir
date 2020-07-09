@@ -42,7 +42,7 @@ def build_cv_data(
                     stride=stride)
 
             if fragment_count > 1:
-                seq_data = seq_data.stratified_sample(fragment_count)
+                seq_data = seq_data.stratified_sample(fragment_count, seed=random_state)
 
         X_train, y_train = build_kmers_Xy_data(seq_data, k,
                 full_kmers=full_kmers, low_var_threshold=low_var_threshold, 
@@ -64,7 +64,7 @@ def build_cv_data(
         seq_test = seq_data.extract_fragments(fragment_size, stride=stride)
 
         if fragment_count > 1:
-            seq_test = seq_test.stratified_sample(fragment_count)
+            seq_test = seq_test.stratified_sample(fragment_count, seed=random_state)
  
         parents = seq_test.get_parents_rank_list()
 
