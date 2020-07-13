@@ -233,3 +233,6 @@ if __name__ == "__main__":
     if plotResults:
         plot_cv_figure(scores_dfs, score_names, lrs_str, "Learning rate", 
                 outFile)
+
+    if verbose:
+        print("\nFin normale du programme")

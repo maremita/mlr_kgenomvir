@@ -188,7 +188,7 @@ if __name__ == "__main__":
     ## Evaluate MLR models
     ######################
 
-    # "l1", "l2", "elasticnet", "none"
+    # "l1", "l2", "elasticnet"
     clf_penalties = str_to_list(_penalties)
     clf_names = [mlr_name+"_"+pen.upper() for pen in clf_penalties]
 
@@ -235,3 +235,6 @@ if __name__ == "__main__":
     if plotResults:
         plot_cv_figure(scores_dfs, score_names, lambdas_str, "Lambda", 
                 outFile)
+
+    if verbose:
+        print("\nFin normale du programme")
