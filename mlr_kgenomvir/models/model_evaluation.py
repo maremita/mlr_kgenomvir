@@ -467,12 +467,16 @@ def plot_cv_figure(scores, score_labels, x_values, xlabel,  out_file):
         # For ESP transparent rendering
         p.set_rasterization_zorder(0)
 
-        xticks = [j for j in range(len(x_values))]
-        xticks = np.array(xticks)
+        xticks = np.array([j for j in range(len(x_values))])
  
         p.set_title(classifier)
         p.set_xticks(xticks)
         p.set_xticklabels(x_values, fontsize=sizefont)
+
+        for x_v, x_t in zip(x_values, p.get_xticklabels()):
+            if "e" in x_v or len(x_v) >= 4: 
+                x_t.set_rotation(45)
+
         p.set_ylim([-0.05, 1.05])
         p.set_xlabel(xlabel, fontsize=sizefont+1) # 'Coverage'
 
