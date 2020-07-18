@@ -146,8 +146,8 @@ if __name__ == "__main__":
     prefix_out = os.path.join(outdir, "{}_{}_K{}{}_{}".format(
         virus_name, evalType, tag_kf, klen, tag_fg))
 
-    ## Lambda values to evaluate
-    ############################
+    ## Learning rate values to evaluate
+    ###################################
     lrs = str_to_list(_learning_rates, cast=float)
     lrs_str = [format(l, '.0e') if l not in list(
         range(0,10)) else str(l) for l in lrs]

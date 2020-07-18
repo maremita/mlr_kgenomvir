@@ -9,8 +9,8 @@
 #################################
 
 __author__ = "Amine Remita"
-__date__   = "20200713"
-__version__ = "0.9.2"
+__date__   = "20200718"
+__version__ = "0.9.3"
 
 __all__ = ['data', 'models', 'utils']
 

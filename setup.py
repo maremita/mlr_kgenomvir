@@ -21,7 +21,8 @@ setup(
         'eval_scripts/mlr_eval_cv_klen.py',
         'eval_scripts/mlr_eval_cv_lambda.py',
         'eval_scripts/mlr_eval_cv_learning_rate.py',
-        'report_scripts/plot_cv_klen.py',
-        'report_scripts/plot_cv_lambda.py'],
+        'report_scripts/mlr_plot_cv_klen.py',
+        'report_scripts/mlr_plot_cv_lambda.py',
+        'report_scripts/mlr_plot_cv_learning_rate.py'],
     install_requires=INSTALL_REQUIRES
 )
