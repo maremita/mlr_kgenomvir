@@ -8,6 +8,7 @@ from mlr_kgenomvir.models.model_evaluation import plot_cv_figure
 from mlr_kgenomvir.utils import str_to_list
 from mlr_kgenomvir.utils import get_stats
 from mlr_kgenomvir.utils import write_log
+from simulation import *
 
 import sys
 import configparser
@@ -48,7 +49,7 @@ if __name__ == "__main__":
     config_file = sys.argv[1]
     config = configparser.ConfigParser(
             interpolation=configparser.ExtendedInterpolation())
- 
+
     with open(config_file, "r") as cf:
         config.read_file(cf)
 
@@ -64,21 +65,21 @@ if __name__ == "__main__":
     # ........ main evaluation parameters ..............
     k_lenghts = config.get("seq_rep", "k")
     # ..................................................
-    fullKmers = config.getboolean("seq_rep", "full_kmers") 
+    fullKmers = config.getboolean("seq_rep", "full_kmers")
     lowVarThreshold = config.get("seq_rep", "low_var_threshold", fallback=None)
 
     # evaluation
     evalType = config.get("evaluation", "eval_type") # CC, CF or FF
-    testSize = config.getfloat("evaluation", "test_size") 
-    cv_folds = config.getint("evaluation", "cv_folds") 
+    testSize = config.getfloat("evaluation", "test_size")
+    cv_folds = config.getint("evaluation", "cv_folds")
     eval_metric = config.get("evaluation", "eval_metric")
     avrg_metric = config.get("evaluation", "avrg_metric")
 
     # classifier
     _module = config.get("classifier", "module") # sklearn or pytorch_mlr
     _tol = config.getfloat("classifier", "tol")
-    _lambda = config.getfloat("classifier", "lambda") 
-    _l1_ratio = config.getfloat("classifier", "l1_ratio") 
+    _lambda = config.getfloat("classifier", "lambda")
+    _l1_ratio = config.getfloat("classifier", "l1_ratio")
     _solver = config.get("classifier", "solver")
     _max_iter = config.getint("classifier", "max_iter")
     _penalties = config.get("classifier", "penalty")
@@ -88,7 +89,7 @@ if __name__ == "__main__":
         _n_iter_no_change = config.getint("classifier", "n_iter_no_change")
         _device = config.get("classifier", "device")
 
-    # settings 
+    # settings
     n_mainJobs = config.getint("settings", "n_main_jobs")
     n_cvJobs = config.getint("settings", "n_cv_jobs")
     verbose = config.getint("settings", "verbose")
@@ -103,7 +104,7 @@ if __name__ == "__main__":
             try:
                 fragmentSize = config.getint("seq_rep", "fragment_size")
                 fragmentCount = config.getint("seq_rep", "fragment_count")
-                fragmentCov = config.getfloat("seq_rep", "fragment_cov") 
+                fragmentCov = config.getfloat("seq_rep", "fragment_cov")
 
             except configparser.NoOptionError:
                 raise configparser.NoOptionError()
@@ -131,10 +132,10 @@ if __name__ == "__main__":
     args_fg = dict()
 
     if evalType in ["CF", "FF"]:
-        tag_fg = "FSZ{}_FCV{}_FCL{}_".format(str(fragmentSize), 
+        tag_fg = "FSZ{}_FCV{}_FCL{}_".format(str(fragmentSize),
                 str(fragmentCov), str(fragmentCount))
 
-        args_fg={'fragment_size':fragmentSize, 
+        args_fg={'fragment_size':fragmentSize,
                 'fragment_cov':fragmentCov,
                 'fragment_count':fragmentCount}
 
@@ -152,14 +153,14 @@ if __name__ == "__main__":
     #####################
 
     if _module == "pytorch_mlr":
-        mlr = MLR(tol=_tol, learning_rate=_learning_rate, l1_ratio=None, 
-                solver=_solver, max_iter=_max_iter, validation=False, 
-                n_iter_no_change=_n_iter_no_change, device=_device, 
+        mlr = MLR(tol=_tol, learning_rate=_learning_rate, l1_ratio=None,
+                solver=_solver, max_iter=_max_iter, validation=False,
+                n_iter_no_change=_n_iter_no_change, device=_device,
                 random_state=randomState, verbose=verbose)
         mlr_name = "PTMLR"
 
     else:
-        mlr = LogisticRegression(multi_class="multinomial", tol=_tol, 
+        mlr = LogisticRegression(multi_class="multinomial", tol=_tol,
                 solver=_solver, max_iter=_max_iter, verbose=0, l1_ratio=None)
         mlr_name = "SKMLR"
 
@@ -193,7 +194,7 @@ if __name__ == "__main__":
                 prefix_out,
                 eval_type=evalType,
                 k=klen,
-                full_kmers=fullKmers, 
+                full_kmers=fullKmers,
                 low_var_threshold=lowVarThreshold,
                 n_splits=cv_folds,
                 test_size=testSize,
@@ -210,18 +211,18 @@ if __name__ == "__main__":
 
         mlr_scores = parallel(delayed(perform_mlr_cv)(clone(mlr), clf_name,
             clf_penalty, _lambda, cv_data, prefix_out, metric=eval_metric,
-            average_metric=avrg_metric, n_jobs=n_cvJobs, 
-            save_model=saveModels, save_result=saveResults, 
+            average_metric=avrg_metric, n_jobs=n_cvJobs,
+            save_model=saveModels, save_result=saveResults,
             verbose=verbose, random_state=randomState)
             for clf_name, clf_penalty in zip(clf_names, clf_penalties))
         #print(mlr_scores)
 
         for i, clf_name in enumerate(clf_names):
             clf_scores[clf_name][str(klen)] = mlr_scores[i]
- 
+
     #print(clf_scores)
 
-    scores_dfs = make_clf_score_dataframes(clf_scores, klen_list_str, 
+    scores_dfs = make_clf_score_dataframes(clf_scores, klen_list_str,
             score_names, _max_iter)
 
     #pprint(scores_dfs)
@@ -237,7 +238,7 @@ if __name__ == "__main__":
     str_lambda = format(_lambda, '.0e') if _lambda not in list(
             range(0, 10)) else str(_lambda)
 
-    outFile = os.path.join(outdir, 
+    outFile = os.path.join(outdir,
             "{}_{}_K{}{}to{}_{}{}{}_A{}_KLENGTHS_{}_{}".format(virus_name,
                 evalType, tag_kf, klen_list[0], klen_list[-1], tag_fg,
                 mlr_name, str_lr, str_lambda, eval_metric, avrg_metric))
@@ -248,7 +249,7 @@ if __name__ == "__main__":
             dump(scores_dfs, fh)
 
     if plotResults:
-        plot_cv_figure(scores_dfs, score_names, klen_list_str, "K length", 
+        plot_cv_figure(scores_dfs, score_names, klen_list_str, "K length",
                 outFile)
 
     if verbose:
