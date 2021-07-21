@@ -1,6 +1,6 @@
 #################################
 ##                             ##
-##  2020 (C) Amine M. Remita   ##
+## 2021(C) Nicolas de Montigny ##
 ##                             ##
 ## Laboratoire Bioinformatique ##
 ## Pr. Abdoulaye Diallo Group  ##
@@ -8,8 +8,6 @@
 ##                             ##
 #################################
 
-__author__ = "Amine Remita"
-__date__   = "20200718"
-__version__ = "0.9.3"
+__author__ = "Nicolas de Montigny"
 
-__all__ = ['data', 'models', 'simulation', 'utils']
+__all__ = ["simulation","santa"]

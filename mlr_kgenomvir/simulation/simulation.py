@@ -6,42 +6,35 @@ from lxml import etree as et
 from Bio import SeqIO
 from random import choice
 
-"""
-#pyvolve
-import pyvolve
-import ngesh
-from Bio import SeqIO
-"""
 __author__ = "nicolas"
 
-"""
-def pyvolve_sim(virus_name, n_iter, virus_file, outdir):
-    for i in range(n_iter):
-        #Random phylogeny tree to simulate
-        my_tree = pyvolve.read_tree(tree = ngesh.random_tree.fasta_tree(birth = 1.0, death = 0.5, max_time = 3.0, labels = "enum").write(format = 1))
-        #Evolutionary model
-        my_model = pyvolve.Model("nucleotide")
-        #Partitions
-        my_partition = pyvolve.Partition(models = my_model, root_sequence = str(list(SeqIO.parse(virus_file,"fasta"))[0].seq))
-        #Evolve partitions
-        my_evolver = pyvolve.Evolver(tree = my_tree, partitions = my_partition)
-        outfile = str(outdir) + "/{}_simulation_{}".format(str(virus_name),str(i))
-        my_evolver(ratefile = None, infofile = None, seqfile = outfile)
-"""
-
-#to add to mlr_eval_cv_*
-
-    #Simulation
-    #sim_type = config.getstr("simulation", "type")
-    #sim_iter = config.getint("simulation", "iterations")len()
-    #sim_tree = config.getstr("simulation", "phylogenic_tree")
-    #sim_dir = config.getstr("simulation", "directory")
-
-def santa_sim(fastaFile, configFile, outDir, virusName, repeat = 1, populationSize = 1000):
-    write_xml_config(fastaFile, configFile, outDir, virusName, repeat, populationSize)
-    cmd = "java -jar santa.jar {}".format(configFile)
-    print("Executing simulations :" + cmd)
+def santa_sim(fastaFile, clsFile, configFile, outDir, virusName = "virus", repeat = 1):
+    classes = generateClasses(clsFile)
+    simFile = write_xml_config(fastaFile, configFile, outDir, virusName, repeat, populationSize = len(classes))
+    santaPath = os.path.dirname(os.path.realpath(__file__)) + "/santa.jar"
+    cmd = "java -jar {} {}".format(santaPath, configFile)
+    print("Executing simulations : " + cmd)
     os.system(cmd)
+    clsFile = generateClassesFile(simFile, classes)
+    return simFile, clsFile
+
+def generateClasses(clsFile):
+    classes = []
+    fh = open(clsFile,"r")
+    lines = fh.readlines()
+    fh.close()
+    for line in lines:
+        classes.append(line.split(",")[1].strip("\n"))
+    return classes
+
+def generateClassesFile(simFile, classes):
+    seqs = list(SeqIO.parse(simFile, "fasta"))
+    clsFile = os.path.dirname(simFile) + "/class.csv"
+    fh = open(clsFile, "w")
+    for i in range(len(seqs)):
+        print(seqs[i].id + "," + classes[i], file = fh)
+    fh.close()
+    return clsFile
 
 def normalise_nucleotide(sequence):
     seq = list(sequence)
@@ -107,7 +100,7 @@ def write_xml_config(infile, outfile, outDir, virusName = "virus", repeat = 1, p
     pop_size = et.SubElement(pop, "populationSize")
     pop_size.text = str(int(populationSize) * 10)
     pop_inoculum = et.SubElement(pop, "inoculum")
-    pop_inoculum.text = "random"
+    pop_inoculum.text = "all"
 
     fitness = et.SubElement(simulation, "fitnessFunction")
     fitness_freq = et.SubElement(fitness, "frequencyDependentFitness")
@@ -143,10 +136,10 @@ def write_xml_config(infile, outfile, outDir, virusName = "virus", repeat = 1, p
 
     sampling = et.SubElement(simulation, "samplingSchedule")
     sampling_sampler = et.SubElement(sampling, "sampler")
-    sampling_sampler_frequency = et.SubElement(sampling_sampler, "atFrequency")
-    sampling_sampler_frequency.text = str(int(populationSize/10))
+    sampling_sampler_generation = et.SubElement(sampling_sampler, "atGeneration")
+    sampling_sampler_generation.text = str(int(populationSize/10))
     sampling_sampler_file = et.SubElement(sampling_sampler, "fileName")
-    sampling_sampler_file.text = str(outDir + "/simulation_%r.fa")
+    sampling_sampler_file.text = str(outDir + "/simulated_pop.fa")
     sampling_sampler_alignment = et.SubElement(sampling_sampler, "alignment")
     sampling_sampler_alignment_size = et.SubElement(sampling_sampler_alignment, "sampleSize")
     sampling_sampler_alignment_size.text = str(populationSize)
@@ -156,6 +149,4 @@ def write_xml_config(infile, outfile, outDir, virusName = "virus", repeat = 1, p
     sampling_sampler_alignment_label.text = "seq_%g_%s"
     et.ElementTree(root).write(outfile, pretty_print=True, encoding='utf-8', xml_declaration=False)
 
-
-#testing
-santa_sim("/home/nicolas/github/mlr_kgenomvir/data/viruses/HBV01/data.fa", "/home/nicolas/github/mlr_kgenomvir/mlr_kgenomvir/simulation/test.xml", "/home/nicolas/github/mlr_kgenomvir/mlr_kgenomvir/simulation")
+    return str(sampling_sampler_file.text)

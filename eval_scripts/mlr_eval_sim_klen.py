@@ -1,4 +1,4 @@
-#!/usr/bin/env pythonmlr_eval_cv_learning_rate
+#!/usr/bin/env python
 
 from mlr_kgenomvir.data.build_cv_data import build_load_save_cv_data
 from mlr_kgenomvir.models.model_evaluation import perform_mlr_cv
@@ -8,7 +8,7 @@ from mlr_kgenomvir.models.model_evaluation import plot_cv_figure
 from mlr_kgenomvir.utils import str_to_list
 from mlr_kgenomvir.utils import get_stats
 from mlr_kgenomvir.utils import write_log
-from simulation import *
+from mlr_kgenomvir.simulation.simulation import santa_sim
 
 import sys
 import configparser
@@ -33,7 +33,7 @@ __author__ = "amine"
 
 """
 The script evaluates the performance of different regularized MLR models
-with function to kmer lengths for virus genome classification
+with function to kmer lengths for virus genome classification of a simulated population
 """
 
 
@@ -112,6 +112,12 @@ if __name__ == "__main__":
         raise ValueError("evalType argument have to be one of CC, CF or"+
                 " FF values")
 
+    # simulations
+    sim_iter = config.getint("simulation", "iterations")
+    sim_pop = config.getint("simulation", "population")
+    sim_dir = outdir + "/simulations"
+    sim_config = sim_dir + "/simulations_config.xml"
+
     # Check lowVarThreshold
     # #####################
     if lowVarThreshold == "None":
@@ -144,6 +150,11 @@ if __name__ == "__main__":
     outdir = os.path.join(outdir,"{}/{}".format(virus_name, evalType))
     makedirs(outdir, mode=0o700, exist_ok=True)
 
+    # SimDir folder
+    ###############
+    sim_dir = os.path.join(sim_dir,"{}/{}".format(virus_name, evalType))
+    makedirs(sim_dir, mode=0o700, exist_ok=True)
+
     ## K lengths to evaluate
     ########################
     klen_list = str_to_list(k_lenghts, cast=int)
@@ -163,6 +174,12 @@ if __name__ == "__main__":
         mlr = LogisticRegression(multi_class="multinomial", tol=_tol,
                 solver=_solver, max_iter=_max_iter, verbose=0, l1_ratio=None)
         mlr_name = "SKMLR"
+
+    # Simulate viral population based on input fasta
+    ################################################
+    sim_file, cls_file = santa_sim(seq_file, cls_file, sim_config, sim_dir, virusName = virus_name, repeat = sim_iter)
+    print(sim_file)
+    print(cls_file)
 
     ## Evaluate MLR models
     ######################
@@ -189,7 +206,7 @@ if __name__ == "__main__":
         ## Generate training and testing data
         ####################################
         tt_data = build_load_save_cv_data(
-                seq_file,
+                sim_file,
                 cls_file,
                 prefix_out,
                 eval_type=evalType,

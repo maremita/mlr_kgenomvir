@@ -35,7 +35,7 @@ class SeqCollection(UserList):
     """
 
     def __init__(self, arg):
- 
+
         self.data = []
         self.labels = []
         self.label_map = {}
@@ -48,7 +48,7 @@ class SeqCollection(UserList):
             self.label_map = self.read_class_file(arg[1])
             self.__set_labels()
 
-        # If argument is a list of labeled seq records 
+        # If argument is a list of labeled seq records
         elif isinstance(arg, list):
             #self.data = arg
             self.data = copy.deepcopy(arg)
@@ -63,7 +63,7 @@ class SeqCollection(UserList):
         # why?
         else:
             self.data = list(copy.deepcopy(arg))
-            self.__get_labels() 
+            self.__get_labels()
 
     def __set_labels(self):
         for ind, seqRecord in enumerate(self.data):
@@ -93,12 +93,12 @@ class SeqCollection(UserList):
         if not isinstance(ind, (int, list, slice)):
             raise TypeError("The argument must be int, list or slice")
 
-        # shallow copy 
+        # shallow copy
         #if the argument is an integer
         if isinstance(ind, int):
             return self.data[ind]
 
-        # With instantiation, data will be deep copied  
+        # With instantiation, data will be deep copied
         # If the argument is a list of indices
         elif isinstance(ind, list):
 
@@ -144,7 +144,7 @@ class SeqCollection(UserList):
 
         for ind, seqRec in enumerate(self.data):
             sequence = seqRec.seq
- 
+
             i = 0
             j = 0
             while i < (len(sequence) - size + 1):
@@ -190,17 +190,17 @@ class SeqCollection(UserList):
         for label in self.label_ind:
             nb_seqs = len(self.label_ind[label])
             the_limit = sup_limit
-    
+
             if nb_seqs <= the_limit:
                 the_limit = nb_seqs
-    
+
             if nb_seqs >= inf_limit:
                 new_data_ind.extend(random.sample(self.label_ind[label], the_limit))
 
         return self[new_data_ind]
-    
+
     def get_count_labels(self):
-        count = {label:len(self.label_ind[label]) 
+        count = {label:len(self.label_ind[label])
                 for label in self.label_ind}
 
         return count
@@ -223,9 +223,8 @@ if __name__ == "__main__":
     #seqco = SeqCollection((seq_file, cls_file))
     #print(seqco.data[0:3])
     #print(type(seqco.data[0:3]))
- 
+
     # seqs = SeqCollection(seq for seq in SeqCollection.read_bio_file(seq_file))
     # print(seqs)
     # print(seqs.label_map)
     # print(type(seqs))
-
