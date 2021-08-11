@@ -7,7 +7,7 @@ from mlr_kgenomvir.models.model_evaluation import make_clf_score_dataframes
 from mlr_kgenomvir.models.model_evaluation import plot_cv_figure
 from mlr_kgenomvir.utils import str_to_list
 from mlr_kgenomvir.utils import write_log
-from mlr_kgenomvir.simulation.simulation import santa_sim
+from mlr_kgenomvir.simulation.simulation import SantaSim
 
 import sys
 import configparser
@@ -27,7 +27,7 @@ from mlr_kgenomvir.models.pytorch_mlr import MLR
 from sklearn.linear_model import LogisticRegression
 
 
-__author__ = "amine"
+__author__ = ["amine","nicolas"]
 
 
 """
@@ -158,7 +158,7 @@ if __name__ == "__main__":
 
     # Simulate viral population based on input fasta
     ################################################
-    sim_file, cls_file = santa_sim(seq_file, cls_file, sim_config, sim_dir, virusName = virus_name, repeat = sim_iter)
+    sim_file, cls_file = SantaSim(seq_file, cls_file, sim_config, sim_dir, virusName = virus_name, repeat = sim_iter)
     print(sim_file)
     print(cls_file)
 
@@ -169,7 +169,7 @@ if __name__ == "__main__":
     clf_penalties = str_to_list(_penalties)
     clf_names = [mlr_name+"_"+pen.upper() for pen in clf_penalties]
 
-    clf_scores = defaultdict(dict) 
+    clf_scores = defaultdict(dict)
     score_names = compile_score_names(eval_metric, avrg_metric)
 
     parallel = Parallel(n_jobs=n_mainJobs, prefer="processes", verbose=verbose)
