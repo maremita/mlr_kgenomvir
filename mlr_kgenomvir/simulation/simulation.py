@@ -12,15 +12,16 @@ __author__ = "nicolas"
 class SantaSim():
     """docstring for santaSim."""
 
-    def __init__(self, fastaFile, clsFile, configFile, outDir, virusName = "virus", repeat = 1):
-        self.fastaFile_ = fastaFile
-        self.clsFile_ = clsFile
-        self.configFile_ = configFile
-        self.outDir_ = outDir
-        self.virusName_ = virusName
-        self.repeat_ = repeat
+    def __init__(self, fastaFile, clsFile, configFile, outDir, outName, virusName = "virus", repeat = 1):
+        self.fastaFile_ = str(fastaFile)
+        self.clsFile_ = str(clsFile)
+        self.configFile_ = str(configFile)
+        self.outDir_ = str(outDir)
+        self.virusName_ = str(virusName)
+        self.repeat_ = str(repeat)
         self.populationSize_ = len(list(SeqIO.parse(self.fastaFile_, "fasta")))
-        self.santaPath_ = os.path.dirname(os.path.realpath(__file__)) + "/santa.jar"
+        self.santaPath_ = "{}/santa.jar".format(os.path.dirname(os.path.realpath(__file__)))
+        self.outName_ = str(outName)
 
     # Main function for executing santaSim
     def santaSim(self):
@@ -38,7 +39,7 @@ class SantaSim():
         j = 0
         for i in range(len(allclades)):
             if not allclades[i].name:
-                allclades[i].name = 'Clade' + str(j)
+                allclades[i].name = 'Clade{}'.format(str(j))
                 j +=1
             seqnames.append(allclades[i].name)
         lookup = {}
@@ -116,7 +117,7 @@ class SantaSim():
         fasta_feature_type = et.SubElement(fasta_feature, "type")
         fasta_feature_type.text = "nucleotide"
         fasta_feature_coords = et.SubElement(fasta_feature, "coordinates")
-        fasta_feature_coords.text = "1-" + str(len(seq.seq))
+        fasta_feature_coords.text = "1-{}".format(str(len(seq.seq)))
         fasta_sq = et.SubElement(fasta, "sequences")
         fasta_sq.text = str(self.normaliseNucleotide(seq.seq))
 
@@ -158,7 +159,7 @@ class SantaSim():
         sampling_sampler_generation = et.SubElement(sampling_sampler, "atGeneration")
         sampling_sampler_generation.text = str(int(self.populationSize_/10))
         sampling_sampler_file = et.SubElement(sampling_sampler, "fileName")
-        sampling_sampler_file.text = str(self.outDir_ + "/simulated_pop.fa")
+        sampling_sampler_file.text = "{}/{}.fa".format(self.outDir_, self.outName_)
         sampling_sampler_alignment = et.SubElement(sampling_sampler, "alignment")
         sampling_sampler_alignment_size = et.SubElement(sampling_sampler_alignment, "sampleSize")
         sampling_sampler_alignment_size.text = str(self.populationSize_)
@@ -170,7 +171,7 @@ class SantaSim():
         sampling_sampler_generation = et.SubElement(sampling_sampler, "atGeneration")
         sampling_sampler_generation.text = str(int(self.populationSize_/10))
         sampling_sampler_tree = et.SubElement(sampling_sampler, "fileName")
-        sampling_sampler_tree.text = str(self.outDir_ + "/simulated_pop.nh")
+        sampling_sampler_tree.text = "{}/{}.nh".format(self.outDir_, self.outName_)
         sampling_sampler_alignment = et.SubElement(sampling_sampler, "tree")
         sampling_sampler_alignment_size = et.SubElement(sampling_sampler_alignment, "sampleSize")
         sampling_sampler_alignment_size.text = str(self.populationSize_)

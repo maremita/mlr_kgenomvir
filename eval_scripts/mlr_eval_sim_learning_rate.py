@@ -58,7 +58,6 @@ if __name__ == "__main__":
 
     # io
     seq_file = config.get("io", "seq_file")
-    cls_file = config.get("io", "cls_file")
     outdir = config.get("io", "outdir")
 
     # seq_rep
@@ -114,9 +113,8 @@ if __name__ == "__main__":
 
     # simulations
     sim_iter = config.getint("simulation", "iterations")
-    sim_pop = config.getint("simulation", "population")
-    sim_dir = outdir + "/simulations"
-    sim_config = sim_dir + "/simulations_config.xml"
+    sim_dir = "{}/simulations".format(outdir)
+    sim_config = "{}/simulations_config.xml".format(sim_dir)
 
     # Check lowVarThreshold
     # #####################
@@ -150,8 +148,6 @@ if __name__ == "__main__":
     outdir = os.path.join(outdir,"{}/{}".format(virus_name, evalType))
     makedirs(outdir, mode=0o700, exist_ok=True)
 
-    prefix_out = os.path.join(outdir, "{}_{}_K{}{}_{}".format(
-        virus_name, evalType, tag_kf, klen, tag_fg))
 
     # SimDir folder
     ###############
@@ -179,31 +175,6 @@ if __name__ == "__main__":
                 " Sklearn implementation of MLR does not initialize"+\
                 " learning rate")
 
-    # Simulate viral population based on input fasta
-    ################################################
-    sim_file, cls_file = SantaSim(seq_file, cls_file, sim_config, sim_dir, virusName = virus_name, repeat = sim_iter)
-    print(sim_file)
-    print(cls_file)
-
-    ## Generate training and testing data
-    ####################################
-    tt_data = build_load_save_cv_data(
-            sim_file,
-            cls_file,
-            prefix_out,
-            eval_type=evalType,
-            k=klen,
-            full_kmers=fullKmers,
-            low_var_threshold=lowVarThreshold,
-            n_splits=cv_folds,
-            test_size=testSize,
-            save_data=saveData,
-            random_state=randomState,
-            verbose=verbose,
-            **args_fg)
-
-    cv_data = tt_data["data"]
-
     ## Evaluate MLR models
     ######################
 
@@ -216,19 +187,64 @@ if __name__ == "__main__":
 
     parallel = Parallel(n_jobs=n_mainJobs, prefer="processes", verbose=verbose)
 
+    # If we have enough memory we can parallelize this loop
+
     for i, (clf_name, clf_penalty) in enumerate(zip(clf_names,clf_penalties)):
         if verbose:
             print("\n{}. Evaluating {}".format(i, clf_name), flush=True)
 
-        mlr_scores = parallel(delayed(perform_mlr_cv)(clone(mlr), clf_name,
-            clf_penalty, _lambda, cv_data, prefix_out, learning_rate=_lr,
-            metric=eval_metric, average_metric=avrg_metric, n_jobs=n_cvJobs,
-            save_model=saveModels, save_result=saveResults,
-            verbose=verbose, random_state=randomState)
-            for _lr in lrs)
+        for iteration in range(0,sim_iter):
+            if verbose:
+                print("\nEvaluating Simulation {}".format(iteration), flush=True)
 
-        for j, lr_str in enumerate(lrs_str):
-            clf_scores[clf_name][lr_str] = mlr_scores[j]
+            # Construct prefix for output files
+            ###################################
+            prefix_out = os.path.join(outdir, "{}_{}_K{}{}_sim{}_{}".format(
+                virus_name, evalType, tag_kf, klen, iteration, tag_fg))
+
+            # Construct prefix for simulation + classes files
+            ###################################
+            prefix_sim = os.path.join(sim_dir, "{}_{}_K{}{}_sim{}_{}".format(
+                virus_name, evalType, tag_kf, klen, iteration, tag_fg))
+            cls_file = "{}/class_{}.csv".format(sim_dir, str(iteration))
+
+            # Simulate viral population based on input fasta
+            ################################################
+            sim = SantaSim(seq_file, cls_file, sim_config, sim_dir, prefix_sim, virusName = virus_name)
+            sim_file = sim.santaSim()
+
+            ## Generate training and testing data
+            ####################################
+            tt_data = build_load_save_cv_data(
+                    sim_file,
+                    cls_file,
+                    prefix_out,
+                    eval_type=evalType,
+                    k=klen,
+                    full_kmers=fullKmers,
+                    low_var_threshold=lowVarThreshold,
+                    n_splits=cv_folds,
+                    test_size=testSize,
+                    save_data=saveData,
+                    random_state=randomState,
+                    verbose=verbose,
+                    **args_fg)
+
+            cv_data = tt_data["data"]
+
+            if verbose:
+                print("X_train descriptive stats:\n{}".format(
+                    get_stats(cv_data["X_train"])))
+
+            mlr_scores = parallel(delayed(perform_mlr_cv)(clone(mlr), clf_name,
+                clf_penalty, _lambda, cv_data, prefix_out, learning_rate=_lr,
+                metric=eval_metric, average_metric=avrg_metric, n_jobs=n_cvJobs,
+                save_model=saveModels, save_result=saveResults,
+                verbose=verbose, random_state=randomState)
+                for _lr in lrs)
+
+            for j, lr_str in enumerate(lrs_str):
+                clf_scores[clf_name][lr_str] = mlr_scores[j]
 
     scores_dfs = make_clf_score_dataframes(clf_scores, lrs_str,
             score_names, _max_iter)

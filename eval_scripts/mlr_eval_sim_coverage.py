@@ -58,7 +58,6 @@ if __name__ == "__main__":
 
     # io
     seq_file = config.get("io", "seq_file")
-    cls_file = config.get("io", "cls_file")
     outdir = config.get("io", "outdir")
 
     # seq_rep
@@ -108,10 +107,9 @@ if __name__ == "__main__":
 
     # simulations
     sim_iter = config.getint("simulation", "iterations")
-    sim_pop = config.getint("simulation", "population")
-    sim_dir = outdir + "/simulations"
-    sim_config = sim_dir + "/simulations_config.xml"
-
+    sim_dir = "{}/simulations".format(outdir)
+    sim_config = "{}/simulations_config.xml".format(sim_dir)
+    
     # Check lowVarThreshold
     # #####################
     if lowVarThreshold == "None":
@@ -156,12 +154,6 @@ if __name__ == "__main__":
                 solver=_solver, max_iter=_max_iter, verbose=0, l1_ratio=None)
         mlr_name = "SKMLR"
 
-    # Simulate viral population based on input fasta
-    ################################################
-    sim_file, cls_file = SantaSim(seq_file, cls_file, sim_config, sim_dir, virusName = virus_name, repeat = sim_iter)
-    print(sim_file)
-    print(cls_file)
-
     ## Evaluate MLR models
     ######################
 
@@ -179,13 +171,23 @@ if __name__ == "__main__":
         if verbose:
             print("\nEvaluating coverage {}".format(coverage), flush=True)
 
+        for iteration in range(0,sim_iter):
+            if verbose:
+                print("\nEvaluating Simulation {}".format(iteration), flush=True)
+
         # Construct prefix for output files
         ###################################
         tag_fg = "FSZ{}_FCV{}_FCL{}_".format(str(fragmentSize),
                 str(coverage), str(fragmentCount))
 
-        prefix_out = os.path.join(outdir, "{}_{}_K{}{}_{}".format(
-            virus_name, evalType, tag_kf, klen, tag_fg))
+        prefix_out = os.path.join(outdir, "{}_{}_K{}{}_sim{}_{}".format(
+            virus_name, evalType, tag_kf, klen, iteration, tag_fg))
+
+        # Construct prefix for simulation + classes files
+        ###################################
+        prefix_sim = os.path.join(sim_dir, "{}_{}_K{}{}_sim{}_{}".format(
+            virus_name, evalType, tag_kf, klen, iteration, tag_fg))
+        cls_file = "{}/class_{}.csv".format(sim_dir, str(iteration))
 
         ## Generate training and testing data
         ####################################
@@ -208,23 +210,22 @@ if __name__ == "__main__":
 
         cv_data = tt_data["data"]
 
+        if verbose:
+            print("X_train descriptive stats:\n{}".format(
+                get_stats(cv_data["X_train"])))
+
         mlr_scores = parallel(delayed(perform_mlr_cv)(clone(mlr), clf_name,
             clf_penalty, _lambda, cv_data, prefix_out, metric=eval_metric,
             average_metric=avrg_metric, n_jobs=n_cvJobs,
             save_model=saveModels, save_result=saveResults,
             verbose=verbose, random_state=randomState)
             for clf_name, clf_penalty in zip(clf_names, clf_penalties))
-        #print(mlr_scores)
 
         for i, clf_name in enumerate(clf_names):
             clf_scores[clf_name][str(coverage)] = mlr_scores[i]
 
-    #print(clf_scores)
-
     scores_dfs = make_clf_score_dataframes(clf_scores, coverages_str,
             score_names, _max_iter)
-
-    #pprint(scores_dfs)
 
     ## Save and Plot results
     ########################

@@ -58,7 +58,6 @@ if __name__ == "__main__":
 
     # io
     seq_file = config.get("io", "seq_file")
-    cls_file = config.get("io", "cls_file")
     outdir = config.get("io", "outdir")
 
     # seq_rep
@@ -114,9 +113,8 @@ if __name__ == "__main__":
 
     # simulations
     sim_iter = config.getint("simulation", "iterations")
-    sim_pop = config.getint("simulation", "population")
-    sim_dir = outdir + "/simulations"
-    sim_config = sim_dir + "/simulations_config.xml"
+    sim_dir = "{}/simulations".format(outdir)
+    sim_config = "{}/simulations_config.xml".format(sim_dir)
 
     # Check lowVarThreshold
     # #####################
@@ -175,10 +173,6 @@ if __name__ == "__main__":
                 solver=_solver, max_iter=_max_iter, verbose=0, l1_ratio=None)
         mlr_name = "SKMLR"
 
-    # Simulate viral population based on input fasta
-    ################################################
-    sim_file = SantaSim(seq_file, cls_file, sim_config, sim_dir, virusName = virus_name, repeat = sim_iter)
-
     ## Evaluate MLR models
     ######################
 
@@ -196,51 +190,61 @@ if __name__ == "__main__":
         if verbose:
             print("\nEvaluating K {}".format(klen), flush=True)
 
-        # Construct prefix for output files
-        ###################################
-        prefix_out = os.path.join(outdir, "{}_{}_K{}{}_{}".format(
-            virus_name, evalType, tag_kf, klen, tag_fg))
+        for iteration in range(0,sim_iter):
+            if verbose:
+                print("\nEvaluating Simulation {}".format(iteration), flush=True)
 
-        ## Generate training and testing data
-        ####################################
-        tt_data = build_load_save_cv_data(
-                sim_file,
-                cls_file,
-                prefix_out,
-                eval_type=evalType,
-                k=klen,
-                full_kmers=fullKmers,
-                low_var_threshold=lowVarThreshold,
-                n_splits=cv_folds,
-                test_size=testSize,
-                save_data=saveData,
-                random_state=randomState,
-                verbose=verbose,
-                **args_fg)
+            # Construct prefix for output files
+            ###################################
+            prefix_out = os.path.join(outdir, "{}_{}_K{}{}_sim{}_{}".format(
+                virus_name, evalType, tag_kf, klen, iteration, tag_fg))
 
-        cv_data = tt_data["data"]
+            # Construct prefix for simulation + classes files
+            ###################################
+            prefix_sim = os.path.join(sim_dir, "{}_{}_K{}{}_sim{}_{}".format(
+                virus_name, evalType, tag_kf, klen, iteration, tag_fg))
+            cls_file = "{}/class_{}.csv".format(sim_dir, str(iteration))
 
-        if verbose:
-            print("X_train descriptive stats:\n{}".format(
-                get_stats(cv_data["X_train"])))
+            # Simulate viral population based on input fasta
+            ################################################
+            sim = SantaSim(seq_file, cls_file, sim_config, sim_dir, prefix_sim, virusName = virus_name)
+            sim_file = sim.santaSim()
 
-        mlr_scores = parallel(delayed(perform_mlr_cv)(clone(mlr), clf_name,
-            clf_penalty, _lambda, cv_data, prefix_out, metric=eval_metric,
-            average_metric=avrg_metric, n_jobs=n_cvJobs,
-            save_model=saveModels, save_result=saveResults,
-            verbose=verbose, random_state=randomState)
-            for clf_name, clf_penalty in zip(clf_names, clf_penalties))
-        #print(mlr_scores)
+            ## Generate training and testing data
+            ####################################
+            tt_data = build_load_save_cv_data(
+                    sim_file,
+                    cls_file,
+                    prefix_out,
+                    eval_type=evalType,
+                    k=klen,
+                    full_kmers=fullKmers,
+                    low_var_threshold=lowVarThreshold,
+                    n_splits=cv_folds,
+                    test_size=testSize,
+                    save_data=saveData,
+                    random_state=randomState,
+                    verbose=verbose,
+                    **args_fg)
 
-        for i, clf_name in enumerate(clf_names):
-            clf_scores[clf_name][str(klen)] = mlr_scores[i]
+            cv_data = tt_data["data"]
 
-    #print(clf_scores)
+            if verbose:
+                print("X_train descriptive stats:\n{}".format(
+                    get_stats(cv_data["X_train"])))
+
+            mlr_scores = parallel(delayed(perform_mlr_cv)(clone(mlr), clf_name,
+                clf_penalty, _lambda, cv_data, prefix_out, metric=eval_metric,
+                average_metric=avrg_metric, n_jobs=n_cvJobs,
+                save_model=saveModels, save_result=saveResults,
+                verbose=verbose, random_state=randomState)
+                for clf_name, clf_penalty in zip(clf_names, clf_penalties))
+
+            for i, clf_name in enumerate(clf_names):
+                clf_scores[clf_name][str(klen)] = mlr_scores[i]
 
     scores_dfs = make_clf_score_dataframes(clf_scores, klen_list_str,
             score_names, _max_iter)
-
-    #pprint(scores_dfs)
 
     ## Save and Plot results
     ########################
@@ -254,7 +258,7 @@ if __name__ == "__main__":
             range(0, 10)) else str(_lambda)
 
     outFile = os.path.join(outdir,
-            "{}_{}_K{}{}to{}_{}{}{}_A{}_KLENGTHS_{}_{}".format(virus_name,
+            "{}_{}_K{}{}to{}_{}{}{}_A{}_KLENGTHS_{}_{}_{}".format(virus_name,
                 evalType, tag_kf, klen_list[0], klen_list[-1], tag_fg,
                 mlr_name, str_lr, str_lambda, eval_metric, avrg_metric))
 
