@@ -198,15 +198,14 @@ if __name__ == "__main__":
             prefix_out = os.path.join(outdir, "{}_{}_K{}{}_sim{}_{}".format(
                 virus_name, evalType, tag_kf, klen, iteration, tag_fg))
 
-            # Construct prefix for simulation + classes files
+            # Construct names for simulation and classes files
             ###################################
-            prefix_sim = os.path.join(sim_dir, "{}_{}_K{}{}_sim{}_{}".format(
-                virus_name, evalType, tag_kf, klen, iteration, tag_fg))
+            sim_name = "simulation_{}".format(iteration)
             cls_file = "{}/class_{}.csv".format(sim_dir, str(iteration))
 
             # Simulate viral population based on input fasta
             ################################################
-            sim = SantaSim(seq_file, cls_file, sim_config, sim_dir, prefix_sim, virusName = virus_name)
+            sim = SantaSim(seq_file, cls_file, sim_config, sim_dir, sim_name, virusName = virus_name)
             sim_file = sim.santaSim()
 
             ## Generate training and testing data
