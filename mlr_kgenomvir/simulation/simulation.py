@@ -64,7 +64,7 @@ class SantaSim():
         with open(self.clsFile_,"w") as fh:
             for i in range(len(n)):
                 if "Clade" not in n[i]:
-                    print(n[i], cls[i], sep = ", ", file = fh)
+                    print(n[i], cls[i], sep = ",", file = fh)
             fh.close()
 
     # Change uncertain nucleotides from sequencing or consensus in databases
