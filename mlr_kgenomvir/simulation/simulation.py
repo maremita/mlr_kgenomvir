@@ -58,9 +58,10 @@ class SantaSim():
         t = Phylo.read(treeFile,"newick")
         n, m = self.generateDistanceMatrix(t)
         linkage = hierarchy.ward(m)
-        cutree = hierarchy.cut_tree(linkage, n_clusters = [5])
+        cutree = hierarchy.cut_tree(linkage, n_clusters = [20])
         cls = cutree.tolist()
         cls = [y for x in cls for y in x]
+        cls[0] = 1
         with open(self.clsFile_,"w") as fh:
             for i in range(len(n)):
                 if "Clade" not in n[i]:
@@ -184,5 +185,5 @@ class SantaSim():
         return str(sampling_sampler_file.text), str(sampling_sampler_tree.text)
 
 #Testing
-#test = SantaSim("/home/nicolas/github/mlr_kgenomvir/data/viruses/HBV01/data.fa", "/home/nicolas/github/mlr_kgenomvir/mlr_kgenomvir/simulation/test.csv", "/home/nicolas/github/mlr_kgenomvir/mlr_kgenomvir/simulation/test.xml", "/home/nicolas/github/mlr_kgenomvir/mlr_kgenomvir/simulation", virusName = "HBV01", repeat = 1)
+#test = SantaSim("/home/nicolas/github/mlr_kgenomvir/data/viruses/HBV01/data.fa", "/home/nicolas/github/mlr_kgenomvir/mlr_kgenomvir/simulation/test.csv", "/home/nicolas/github/mlr_kgenomvir/mlr_kgenomvir/simulation/test.xml", "/home/nicolas/github/mlr_kgenomvir/mlr_kgenomvir/simulation", "sim_test", virusName = "HBV01", repeat = 1)
 #test.santaSim()
