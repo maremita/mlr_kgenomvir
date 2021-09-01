@@ -214,10 +214,6 @@ if __name__ == "__main__":
 
         cv_data = tt_data["data"]
 
-        if verbose:
-            print("X_train descriptive stats:\n{}".format(
-                get_stats(cv_data["X_train"])))
-
         mlr_scores = parallel(delayed(perform_mlr_cv)(clone(mlr), clf_name,
             clf_penalty, _lambda, cv_data, prefix_out, metric=eval_metric,
             average_metric=avrg_metric, n_jobs=n_cvJobs,

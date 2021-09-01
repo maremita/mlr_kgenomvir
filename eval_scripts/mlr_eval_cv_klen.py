@@ -8,7 +8,6 @@ from mlr_kgenomvir.models.model_evaluation import plot_cv_figure
 from mlr_kgenomvir.utils import str_to_list
 from mlr_kgenomvir.utils import get_stats
 from mlr_kgenomvir.utils import write_log
-from simulation import *
 
 import sys
 import configparser
