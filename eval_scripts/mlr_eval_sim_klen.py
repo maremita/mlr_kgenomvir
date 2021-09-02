@@ -186,28 +186,29 @@ if __name__ == "__main__":
     parallel = Parallel(n_jobs=n_mainJobs, prefer="processes", verbose=verbose)
 
     # If we have enough memory we can parallelize this loop
-    for klen in klen_list:
-        if verbose:
-            print("\nEvaluating K {}".format(klen), flush=True)
 
-        for iteration in range(0,sim_iter):
+    for iteration in range(1, sim_iter + 1):
+        if verbose:
+            print("\nEvaluating Simulation {}".format(iteration), flush=True)
+
+        # Construct names for simulation and classes files
+        ###################################
+        sim_name = "simulation_{}".format(iteration)
+        cls_file = "{}/class_{}.csv".format(sim_dir, str(iteration))
+
+        # Simulate viral population based on input fasta
+        ################################################
+        sim = SantaSim(seq_file, cls_file, sim_config, sim_dir, sim_name, virusName = virus_name)
+        sim_file = sim.santaSim()
+
+        for klen in klen_list:
             if verbose:
-                print("\nEvaluating Simulation {}".format(iteration), flush=True)
+                print("\nEvaluating K {}".format(klen), flush=True)
 
             # Construct prefix for output files
             ###################################
             prefix_out = os.path.join(outdir, "{}_{}_K{}{}_sim{}_{}".format(
                 virus_name, evalType, tag_kf, klen, iteration, tag_fg))
-
-            # Construct names for simulation and classes files
-            ###################################
-            sim_name = "simulation_{}".format(iteration)
-            cls_file = "{}/class_{}.csv".format(sim_dir, str(iteration))
-
-            # Simulate viral population based on input fasta
-            ################################################
-            sim = SantaSim(seq_file, cls_file, sim_config, sim_dir, sim_name, virusName = virus_name)
-            sim_file = sim.santaSim()
 
             ## Generate training and testing data
             ####################################
@@ -242,33 +243,33 @@ if __name__ == "__main__":
             for i, clf_name in enumerate(clf_names):
                 clf_scores[clf_name][str(klen)] = mlr_scores[i]
 
-    scores_dfs = make_clf_score_dataframes(clf_scores, klen_list_str,
+        scores_dfs = make_clf_score_dataframes(clf_scores, klen_list_str,
             score_names, _max_iter)
 
-    ## Save and Plot results
-    ########################
-    str_lr = ""
-    if _module == "pytorch_mlr":
-        str_lr = format(_learning_rate, '.0e') if _learning_rate not in list(
-                range(0, 10)) else str(_learning_rate)
-        str_lr = "_LR"+str_lr
+        ## Save and Plot results
+        ########################
+        str_lr = ""
+        if _module == "pytorch_mlr":
+            str_lr = format(_learning_rate, '.0e') if _learning_rate not in list(
+                    range(0, 10)) else str(_learning_rate)
+            str_lr = "_LR"+str_lr
 
-    str_lambda = format(_lambda, '.0e') if _lambda not in list(
-            range(0, 10)) else str(_lambda)
+        str_lambda = format(_lambda, '.0e') if _lambda not in list(
+                range(0, 10)) else str(_lambda)
 
-    outFile = os.path.join(outdir,
-            "{}_{}_K{}{}to{}_{}{}{}_A{}_KLENGTHS_{}_{}_{}".format(virus_name,
-                evalType, tag_kf, klen_list[0], klen_list[-1], tag_fg,
-                mlr_name, str_lr, str_lambda, eval_metric, avrg_metric))
+        outFile = os.path.join(outdir,
+                "{}_{}_K{}{}to{}_{}{}{}_A{}_KLENGTHS_sim{}_{}_{}".format(virus_name,
+                    evalType, tag_kf, klen_list[0], klen_list[-1], tag_fg,
+                    mlr_name, str_lr, str_lambda, iteration, eval_metric, avrg_metric))
 
-    if saveResults:
-        write_log(scores_dfs, config, outFile+".log")
-        with open(outFile+".jb", 'wb') as fh:
-            dump(scores_dfs, fh)
+        if saveResults:
+            write_log(scores_dfs, config, outFile+".log")
+            with open(outFile+".jb", 'wb') as fh:
+                dump(scores_dfs, fh)
 
-    if plotResults:
-        plot_cv_figure(scores_dfs, score_names, klen_list_str, "K length",
-                outFile)
+        if plotResults:
+            plot_cv_figure(scores_dfs, score_names, klen_list_str, "K length",
+                    outFile)
 
     if verbose:
         print("\nFin normale du programme")

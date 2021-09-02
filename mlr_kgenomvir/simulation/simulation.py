@@ -61,9 +61,14 @@ class SantaSim():
         cutree = hierarchy.cut_tree(linkage, n_clusters = [5])
         cls = cutree.tolist()
         cls = [y for x in cls for y in x]
-        for i in range(len(cls)):
+        tmp = cls[:]
+        for i in range(len(cls),0):
+            if "Clade" in n[i]:
+                cls.pop(i)
+        for i in range(0,len(cls)):
             if cls.count(cls[i]) < 2:
-                cls[i] = 1
+                tmp.remove(cls[i])
+                cls[i] = choice(tmp)
         with open(self.clsFile_,"w") as fh:
             for i in range(len(n)):
                 if "Clade" not in n[i]:
@@ -188,5 +193,5 @@ class SantaSim():
 
 #Testing
 #for i in range(20):
-#   test = SantaSim("/home/nicolas/github/mlr_kgenomvir/data/viruses/HBV01/data.fa", "/home/nicolas/github/mlr_kgenomvir/mlr_kgenomvir/simulation/test.csv", "/home/nicolas/github/mlr_kgenomvir/mlr_kgenomvir/simulation/test.xml", "/home/nicolas/github/mlr_kgenomvir/mlr_kgenomvir/simulation", "sim_test", virusName = "HBV01", repeat = 1)
-#   print(test.santaSim())
+#    test = SantaSim("/home/nicolas/github/mlr_kgenomvir/data/viruses/HBV01/data.fa", "/home/nicolas/github/mlr_kgenomvir/mlr_kgenomvir/simulation/test.csv", "/home/nicolas/github/mlr_kgenomvir/mlr_kgenomvir/simulation/test.xml", "/home/nicolas/github/mlr_kgenomvir/mlr_kgenomvir/simulation", "sim_test", virusName = "HBV01", repeat = 1)
+#    print(test.santaSim())

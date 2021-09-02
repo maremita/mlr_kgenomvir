@@ -185,18 +185,9 @@ if __name__ == "__main__":
 
     parallel = Parallel(n_jobs=n_mainJobs, prefer="processes", verbose=verbose)
 
-    for i, (clf_name, clf_penalty) in enumerate(zip(clf_names,clf_penalties)):
+    for iteration in range(1,sim_iter + 1):
         if verbose:
-            print("\n{}. Evaluating {}".format(i, clf_name), flush=True)
-
-        for iteration in range(0,sim_iter):
-            if verbose:
-                print("\nEvaluating Simulation {}".format(iteration), flush=True)
-
-            # Construct prefix for output files
-            ###################################
-            prefix_out = os.path.join(outdir, "{}_{}_K{}{}_sim{}_{}".format(
-                virus_name, evalType, tag_kf, klen, iteration, tag_fg))
+            print("\nEvaluating Simulation {}".format(iteration), flush=True)
 
             # Construct names for simulation and classes files
             ###################################
@@ -207,6 +198,15 @@ if __name__ == "__main__":
             ################################################
             sim = SantaSim(seq_file, cls_file, sim_config, sim_dir, sim_name, virusName = virus_name)
             sim_file = sim.santaSim()
+
+        for i, (clf_name, clf_penalty) in enumerate(zip(clf_names,clf_penalties)):
+            if verbose:
+                print("\n{}. Evaluating {}".format(i, clf_name), flush=True)
+
+            # Construct prefix for output files
+            ###################################
+            prefix_out = os.path.join(outdir, "{}_{}_K{}{}_sim{}_{}".format(
+            virus_name, evalType, tag_kf, klen, iteration, tag_fg))
 
             ## Generate training and testing data
             ####################################
@@ -237,30 +237,30 @@ if __name__ == "__main__":
             for j, lambda_str in enumerate(lambdas_str):
                 clf_scores[clf_name][lambda_str] = mlr_scores[j]
 
-    scores_dfs = make_clf_score_dataframes(clf_scores, lambdas_str,
+        scores_dfs = make_clf_score_dataframes(clf_scores, lambdas_str,
             score_names, _max_iter)
 
-    ## Save and Plot results
-    ########################
-    str_lr = ""
-    if _module == "pytorch_mlr":
-        str_lr = format(_learning_rate, '.0e') if _learning_rate not in list(
-                range(0, 10)) else str(_learning_rate)
-        str_lr = "_LR"+str_lr
+        ## Save and Plot results
+        ########################
+        str_lr = ""
+        if _module == "pytorch_mlr":
+            str_lr = format(_learning_rate, '.0e') if _learning_rate not in list(
+                    range(0, 10)) else str(_learning_rate)
+            str_lr = "_LR"+str_lr
 
-    outFile = os.path.join(outdir,
-            "{}_{}_K{}{}_{}{}{}_A{}to{}_LAMBDAS_{}_{}".format(virus_name,
-                evalType, tag_kf, klen, tag_fg, mlr_name, str_lr,
-                lambdas_str[0], lambdas_str[-1], eval_metric, avrg_metric))
+        outFile = os.path.join(outdir,
+                "{}_{}_K{}{}_{}{}{}_A{}to{}_LAMBDAS_sim{}_{}_{}".format(virus_name,
+                    evalType, tag_kf, klen, tag_fg, mlr_name, str_lr,
+                    lambdas_str[0], lambdas_str[-1], iteration, eval_metric, avrg_metric))
 
-    if saveResults:
-        write_log(scores_dfs, config, outFile+".log")
-        with open(outFile+".jb", 'wb') as fh:
-            dump(scores_dfs, fh)
+        if saveResults:
+            write_log(scores_dfs, config, outFile+".log")
+            with open(outFile+".jb", 'wb') as fh:
+                dump(scores_dfs, fh)
 
-    if plotResults:
-        plot_cv_figure(scores_dfs, score_names, lambdas_str, "Lambda",
-                outFile)
+        if plotResults:
+            plot_cv_figure(scores_dfs, score_names, lambdas_str, "Lambda",
+                    outFile)
 
     if verbose:
         print("\nFin normale du programme")

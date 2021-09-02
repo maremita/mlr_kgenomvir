@@ -167,93 +167,93 @@ if __name__ == "__main__":
     parallel = Parallel(n_jobs=n_mainJobs, prefer="processes", verbose=verbose)
 
     # If we have enough memory we can parallelize this loop
-    for coverage in coverages:
+    for iteration in range(1,sim_iter + 1):
         if verbose:
-            print("\nEvaluating coverage {}".format(coverage), flush=True)
+            print("\nEvaluating Simulation {}".format(iteration), flush=True)
 
-        for iteration in range(0,sim_iter):
+            # Construct names for simulation and classes files
+            ###################################
+            sim_name = "simulation_{}".format(iteration)
+            cls_file = "{}/class_{}.csv".format(sim_dir, str(iteration))
+
+            # Simulate viral population based on input fasta
+            ################################################
+            sim = SantaSim(seq_file, cls_file, sim_config, sim_dir, sim_name, virusName = virus_name)
+            sim_file = sim.santaSim()
+
+        for coverage in coverages:
             if verbose:
-                print("\nEvaluating Simulation {}".format(iteration), flush=True)
+                print("\nEvaluating coverage {}".format(coverage), flush=True)
 
-        # Construct prefix for output files
-        ###################################
-        tag_fg = "FSZ{}_FCV{}_FCL{}_".format(str(fragmentSize),
-                str(coverage), str(fragmentCount))
+            # Construct prefix for output files
+            ###################################
+            tag_fg = "FSZ{}_FCV{}_FCL{}_".format(str(fragmentSize),
+            str(coverage), str(fragmentCount))
 
-        prefix_out = os.path.join(outdir, "{}_{}_K{}{}_sim{}_{}".format(
+            prefix_out = os.path.join(outdir, "{}_{}_K{}{}_sim{}_{}".format(
             virus_name, evalType, tag_kf, klen, iteration, tag_fg))
 
-        # Construct names for simulation and classes files
-        ###################################
-        sim_name = "simulation_{}".format(iteration)
-        cls_file = "{}/class_{}.csv".format(sim_dir, str(iteration))
+            ## Generate training and testing data
+            ####################################
+            tt_data = build_load_save_cv_data(
+                    sim_file,
+                    cls_file,
+                    prefix_out,
+                    eval_type=evalType,
+                    k=klen,
+                    full_kmers=fullKmers,
+                    low_var_threshold=lowVarThreshold,
+                    fragment_size=fragmentSize,
+                    fragment_cov=coverage,
+                    fragment_count=fragmentCount,
+                    n_splits=cv_folds,
+                    test_size=testSize,
+                    save_data=saveData,
+                    random_state=randomState,
+                    verbose=verbose)
 
-        # Simulate viral population based on input fasta
-        ################################################
-        sim = SantaSim(seq_file, cls_file, sim_config, sim_dir, sim_name, virusName = virus_name)
-        sim_file = sim.santaSim()
+            cv_data = tt_data["data"]
 
-        ## Generate training and testing data
-        ####################################
-        tt_data = build_load_save_cv_data(
-                sim_file,
-                cls_file,
-                prefix_out,
-                eval_type=evalType,
-                k=klen,
-                full_kmers=fullKmers,
-                low_var_threshold=lowVarThreshold,
-                fragment_size=fragmentSize,
-                fragment_cov=coverage,
-                fragment_count=fragmentCount,
-                n_splits=cv_folds,
-                test_size=testSize,
-                save_data=saveData,
-                random_state=randomState,
-                verbose=verbose)
+            mlr_scores = parallel(delayed(perform_mlr_cv)(clone(mlr), clf_name,
+                clf_penalty, _lambda, cv_data, prefix_out, metric=eval_metric,
+                average_metric=avrg_metric, n_jobs=n_cvJobs,
+                save_model=saveModels, save_result=saveResults,
+                verbose=verbose, random_state=randomState)
+                for clf_name, clf_penalty in zip(clf_names, clf_penalties))
 
-        cv_data = tt_data["data"]
+            for i, clf_name in enumerate(clf_names):
+                clf_scores[clf_name][str(coverage)] = mlr_scores[i]
 
-        mlr_scores = parallel(delayed(perform_mlr_cv)(clone(mlr), clf_name,
-            clf_penalty, _lambda, cv_data, prefix_out, metric=eval_metric,
-            average_metric=avrg_metric, n_jobs=n_cvJobs,
-            save_model=saveModels, save_result=saveResults,
-            verbose=verbose, random_state=randomState)
-            for clf_name, clf_penalty in zip(clf_names, clf_penalties))
+        scores_dfs = make_clf_score_dataframes(clf_scores, coverages_str,
+                score_names, _max_iter)
 
-        for i, clf_name in enumerate(clf_names):
-            clf_scores[clf_name][str(coverage)] = mlr_scores[i]
+        ## Save and Plot results
+        ########################
+        str_lr = ""
+        if _module == "pytorch_mlr":
+            str_lr = format(_learning_rate, '.0e') if _learning_rate not in list(
+                    range(0, 10)) else str(_learning_rate)
+            str_lr = "_LR"+str_lr
 
-    scores_dfs = make_clf_score_dataframes(clf_scores, coverages_str,
-            score_names, _max_iter)
+        str_lambda = format(_lambda, '.0e') if _lambda not in list(
+                range(0, 10)) else str(_lambda)
 
-    ## Save and Plot results
-    ########################
-    str_lr = ""
-    if _module == "pytorch_mlr":
-        str_lr = format(_learning_rate, '.0e') if _learning_rate not in list(
-                range(0, 10)) else str(_learning_rate)
-        str_lr = "_LR"+str_lr
+        tag_cov = "FSZ{}_FCV{}to{}_FCL{}".format(str(fragmentSize),
+                coverages_str[0], coverages_str[-1], str(fragmentCount))
 
-    str_lambda = format(_lambda, '.0e') if _lambda not in list(
-            range(0, 10)) else str(_lambda)
+        outFile = os.path.join(outdir,
+                "{}_{}_K{}{}_{}_{}{}_A{}_COVERAGES_sim{}_{}_{}".format(virus_name,
+                    evalType, tag_kf, klen, tag_cov, mlr_name, str_lr,
+                    str_lambda, iteration, eval_metric, avrg_metric))
 
-    tag_cov = "FSZ{}_FCV{}to{}_FCL{}".format(str(fragmentSize),
-            coverages_str[0], coverages_str[-1], str(fragmentCount))
+        if saveResults:
+            write_log(scores_dfs, config, outFile+".log")
+            with open(outFile+".jb", 'wb') as fh:
+                dump(scores_dfs, fh)
 
-    outFile = os.path.join(outdir,
-            "{}_{}_K{}{}_{}_{}{}_A{}_COVERAGES_{}_{}".format(virus_name,
-                evalType, tag_kf, klen, tag_cov, mlr_name, str_lr,
-                str_lambda, eval_metric, avrg_metric))
-
-    if saveResults:
-        write_log(scores_dfs, config, outFile+".log")
-        with open(outFile+".jb", 'wb') as fh:
-            dump(scores_dfs, fh)
-
-    if plotResults:
-        plot_cv_figure(scores_dfs, score_names, coverages_str, "Coverage",
-                outFile)
+        if plotResults:
+            plot_cv_figure(scores_dfs, score_names, coverages_str, "Coverage",
+                    outFile)
 
     if verbose:
         print("\nFin normale du programme")
