@@ -7,3 +7,5 @@ scikit-learn>=0.21.1
 torch
 matplotlib
 lxml
+dendropy
+phylodm

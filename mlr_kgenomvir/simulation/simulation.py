@@ -8,14 +8,17 @@ import copy
 from random import choice
 from collections import defaultdict
 
+import dendropy
+from phylodm.pdm import PDM
 from lxml import etree as et
-from Bio import SeqIO, Phylo
+
 import numpy as np
 from scipy.cluster import hierarchy
+from scipy.spatial.distance import pdist
 
 from joblib import Parallel, delayed
 
-__author__ = "nicolas"
+__author__ = "nicolas, amine"
 
 
 class SantaSim():
@@ -98,47 +101,27 @@ class SantaSim():
         os.system(cmd)
         return simFasta, simTree
 
-    # Extract nodes name list and distance matrix from tree
-    @classmethod
-    def generateDistanceMatrix(cls, tree):
-        allclades = list(tree.find_clades(order="level"))
-        seqnames = []
-        j = 0
-        for i in range(len(allclades)):
-            if not allclades[i].name:
-                allclades[i].name = 'Clade{}'.format(str(j))
-                j +=1
-            seqnames.append(allclades[i].name)
-        lookup = {}
-        for i, elem in enumerate(allclades):
-            lookup[elem] = i
-        distmat = np.zeros((len(allclades),len(allclades)))
-        for parent in tree.find_clades(order="level"):
-            for child in parent.clades:
-                if child.branch_length:
-                    distmat[lookup[parent], lookup[child]] = child.branch_length
-                    distmat[len(allclades) - lookup[child] - 1, len(allclades) - lookup[parent] - 1] = child.branch_length
-        return seqnames, distmat
-
     # Generate classes file from a tree file in newick format
     @classmethod
     def generateClasses(cls, treeFile, nbClusters):
-
         class_list = defaultdict(list)
-        t = Phylo.read(treeFile,"newick")
-        names, matrix = cls.generateDistanceMatrix(t)
-        linkage = hierarchy.ward(matrix)
-        cutree = hierarchy.cut_tree(linkage, n_clusters = [nbClusters+1])
-        # +1 because the first cluster will contain only the root clade
-        #print(cutree)
-        classes = np.squeeze(cutree.tolist(), axis=1)
+
+        with open(treeFile, 'r') as fh:
+            treeStr = fh.read().replace('\n', '')
+        # SantSim generate newick without the semicomma at the end
+        if not treeStr.endswith(";"): treeStr += ";"
+
+        tree = dendropy.Tree.get(data=treeStr, schema='newick')
+        pdm = PDM.get_from_dendropy(tree=tree, method='pd', cpus=1)
+        # Attention: dendropy replaces "_" by space in names!
+        names, matrix = pdm.as_matrix()
+        linkage = hierarchy.ward(pdist(matrix))
+        cutree = hierarchy.cut_tree(linkage, n_clusters = [nbClusters])
+        classes = np.squeeze(cutree, axis=1)
         #print(classes)
 
         for i, c in enumerate(classes):
-            if "Clade" not in names[i]:
-                class_list[c].append(names[i])
-            else:
-                print(c, names[i])
+            class_list[c].append(names[i].replace(" ", "_"))
 
         return class_list
 
@@ -275,7 +258,3 @@ class SantaSim():
 
         return str(sampling_sampler_file.text), str(sampling_sampler_tree.text), configFile
 
-#Testing
-#for i in range(20):
-#    test = SantaSim("/home/nicolas/github/mlr_kgenomvir/data/viruses/HBV01/data.fa", "/home/nicolas/github/mlr_kgenomvir/mlr_kgenomvir/simulation/test.csv", "/home/nicolas/github/mlr_kgenomvir/mlr_kgenomvir/simulation/test.xml", "/home/nicolas/github/mlr_kgenomvir/mlr_kgenomvir/simulation", "sim_test", virusName = "HBV01", repeat = 1)
-#    print(test.santaSim())
