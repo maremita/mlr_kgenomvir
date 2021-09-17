@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-from mlr_kgenomvir.data.build_cv_data import build_load_save_cv_data
 from mlr_kgenomvir.data.seq_collections import SeqCollection
+from mlr_kgenomvir.data.build_cv_data import build_load_save_cv_data
 from mlr_kgenomvir.models.model_evaluation import perform_mlr_cv
 from mlr_kgenomvir.models.model_evaluation import compile_score_names
 from mlr_kgenomvir.models.model_evaluation import make_clf_score_dataframes
@@ -11,9 +11,9 @@ from mlr_kgenomvir.utils import get_stats
 from mlr_kgenomvir.utils import write_log
 from mlr_kgenomvir.simulation.simulation import SantaSim
 
+import random
 import sys
 import configparser
-import random
 import os.path
 from os import makedirs
 from collections import defaultdict
@@ -34,8 +34,9 @@ __author__ = ["amine","nicolas"]
 
 
 """
-The script evaluates the performance of different regularized MLR models
-with function to kmer lengths for virus genome classification of a simulated population
+The script evaluates the performance of different 
+regularized MLR models with function to kmer lengths for
+virus genome classification of a simulated population
 """
 
 
@@ -214,8 +215,6 @@ if __name__ == "__main__":
 
     parallel = Parallel(n_jobs=n_mainJobs, prefer="processes", verbose=verbose)
 
-    # If we have enough memory we can parallelize this loop
-
     for iteration in range(1, sim_iter+1):
         if verbose:
             print("\nEvaluating Simulation {}".format(iteration), flush=True)
@@ -223,11 +222,9 @@ if __name__ == "__main__":
         # Construct names for simulation and classes files
         ###################################
         sim_name = "sim_{}".format(iteration)
-        #cls_file = "{}/class_{}.csv".format(sim_dir, str(iteration))
 
         # Simulate viral population based on input fasta
         ################################################
-        #sim = SantaSim(seq_file, cls_file, sim_config, sim_dir, sim_name, virusName=virus_name)
         sim = SantaSim([initseq], nb_classes, class_pop_size, evo_params, 
                 sim_dir, sim_name, verbose=verbose)
         sim_file, cls_file = sim()

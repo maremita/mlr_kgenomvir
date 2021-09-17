@@ -1,14 +1,17 @@
 #!/usr/bin/env python
 
+from mlr_kgenomvir.data.seq_collections import SeqCollection
 from mlr_kgenomvir.data.build_cv_data import build_load_save_cv_data
 from mlr_kgenomvir.models.model_evaluation import perform_mlr_cv
 from mlr_kgenomvir.models.model_evaluation import compile_score_names
 from mlr_kgenomvir.models.model_evaluation import make_clf_score_dataframes
 from mlr_kgenomvir.models.model_evaluation import plot_cv_figure
 from mlr_kgenomvir.utils import str_to_list
+from mlr_kgenomvir.utils import get_stats
 from mlr_kgenomvir.utils import write_log
 from mlr_kgenomvir.simulation.simulation import SantaSim
 
+import random
 import sys
 import configparser
 import os.path
@@ -112,9 +115,36 @@ if __name__ == "__main__":
                 " FF values")
 
     # simulations
+    init_seq = config.get("simulation", "init_seq") # file/none
+    init_seq_size = config.getint("simulation", "init_seq_size", fallback=None)
     sim_iter = config.getint("simulation", "iterations")
-    sim_dir = "{}/simulations".format(outdir)
-    sim_config = "{}/simulations_config.xml".format(sim_dir)
+    nb_classes = config.getint("simulation", "nb_classes")
+    class_pop_size = config.getint("simulation", "class_pop_size")
+    evo_params = dict()
+    evo_params["populationSize"] = config.getint("simulation", 
+            "init_pop_size", fallback=100)
+    evo_params["generationCount"] = config.getint("simulation", 
+            "generation_count", fallback=100)
+    evo_params["fitnessFreq"] = config.getfloat("simulation",
+            "fitness_freq", fallback=0.5)
+    evo_params["repDualInfection"] = config.getfloat("simulation",
+            "rep_dual_infection", fallback=0.0)
+    evo_params["repRecombination"] = config.getfloat("simulation", 
+            "rep_recombination", fallback=0.0)
+    evo_params["mutationRate"] = config.getfloat("simulation", 
+            "mutation_rate", fallback=0.5)
+    evo_params["transitionBias"] = config.getfloat("simulation", 
+            "transition_bias", fallback=5.0)
+
+    # Here we fix the initial seq for all iterations.
+    # Maybe we need to use different init seq for each iteration
+    # simulation init
+    if init_seq == "file":
+        simseqs = SeqCollection.read_bio_file(seq_file)
+        initseq = simseqs[random.randint(0, len(simseqs))]
+    else:
+        # writeSimXMLConfig of SantaSim will check if initSeq is an integer
+        initseq = init_seq_size
 
     # Check lowVarThreshold
     # #####################
@@ -148,10 +178,9 @@ if __name__ == "__main__":
     outdir = os.path.join(outdir,"{}/{}".format(virus_name, evalType))
     makedirs(outdir, mode=0o700, exist_ok=True)
 
-
     # SimDir folder
     ###############
-    sim_dir = os.path.join(sim_dir,"{}/{}".format(virus_name, evalType))
+    sim_dir = os.path.join(outdir,"simulations")
     makedirs(sim_dir, mode=0o700, exist_ok=True)
 
     ## Learning rate values to evaluate
@@ -187,49 +216,51 @@ if __name__ == "__main__":
 
     parallel = Parallel(n_jobs=n_mainJobs, prefer="processes", verbose=verbose)
 
-    # If we have enough memory we can parallelize this loop
-
     for iteration in range(1,sim_iter + 1):
         if verbose:
             print("\nEvaluating Simulation {}".format(iteration), flush=True)
 
-            # Construct names for simulation and classes files
-            ###################################
-            sim_name = "simulation_{}".format(iteration)
-            cls_file = "{}/class_{}.csv".format(sim_dir, str(iteration))
+        # Construct names for simulation and classes files
+        ###################################
+        sim_name = "sim_{}".format(iteration)
 
-            # Simulate viral population based on input fasta
-            ################################################
-            sim = SantaSim(seq_file, cls_file, sim_config, sim_dir, sim_name, virusName = virus_name)
-            sim_file = sim.santaSim()
+        # Simulate viral population based on input fasta
+        ################################################
+        sim = SantaSim([initseq], nb_classes, class_pop_size, evo_params, 
+                sim_dir, sim_name, verbose=verbose)
+        sim_file, cls_file = sim()
+
+        # Construct prefix for output files
+        ###################################
+        prefix_out = os.path.join(outdir, "{}_{}_K{}{}_sim{}_{}".format(
+        virus_name, evalType, tag_kf, klen, iteration, tag_fg))
+
+        ## Generate training and testing data
+        ####################################
+        tt_data = build_load_save_cv_data(
+                sim_file,
+                cls_file,
+                prefix_out,
+                eval_type=evalType,
+                k=klen,
+                full_kmers=fullKmers,
+                low_var_threshold=lowVarThreshold,
+                n_splits=cv_folds,
+                test_size=testSize,
+                save_data=saveData,
+                random_state=randomState,
+                verbose=verbose,
+                **args_fg)
+
+        cv_data = tt_data["data"]
+            
+        if verbose:
+            print("X_train descriptive stats:\n{}".format(
+                get_stats(cv_data["X_train"])))
 
         for i, (clf_name, clf_penalty) in enumerate(zip(clf_names,clf_penalties)):
             if verbose:
                 print("\n{}. Evaluating {}".format(i, clf_name), flush=True)
-
-            # Construct prefix for output files
-            ###################################
-            prefix_out = os.path.join(outdir, "{}_{}_K{}{}_sim{}_{}".format(
-            virus_name, evalType, tag_kf, klen, iteration, tag_fg))
-
-            ## Generate training and testing data
-            ####################################
-            tt_data = build_load_save_cv_data(
-                    sim_file,
-                    cls_file,
-                    prefix_out,
-                    eval_type=evalType,
-                    k=klen,
-                    full_kmers=fullKmers,
-                    low_var_threshold=lowVarThreshold,
-                    n_splits=cv_folds,
-                    test_size=testSize,
-                    save_data=saveData,
-                    random_state=randomState,
-                    verbose=verbose,
-                    **args_fg)
-
-            cv_data = tt_data["data"]
 
             mlr_scores = parallel(delayed(perform_mlr_cv)(clone(mlr), clf_name,
                 clf_penalty, _lambda, cv_data, prefix_out, learning_rate=_lr,
