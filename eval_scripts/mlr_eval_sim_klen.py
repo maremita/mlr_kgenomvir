@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from mlr_kgenomvir.data.build_cv_data import build_load_save_cv_data
+from mlr_kgenomvir.data.seq_collections import SeqCollection
 from mlr_kgenomvir.models.model_evaluation import perform_mlr_cv
 from mlr_kgenomvir.models.model_evaluation import compile_score_names
 from mlr_kgenomvir.models.model_evaluation import make_clf_score_dataframes
@@ -12,6 +13,7 @@ from mlr_kgenomvir.simulation.simulation import SantaSim
 
 import sys
 import configparser
+import random
 import os.path
 from os import makedirs
 from collections import defaultdict
@@ -57,7 +59,7 @@ if __name__ == "__main__":
     virus_name = config.get("virus", "virus_code")
 
     # io
-    seq_file = config.get("io", "seq_file")
+    seq_file = config.get("io", "seq_file", fallback=None)
     outdir = config.get("io", "outdir")
 
     # seq_rep
@@ -112,9 +114,36 @@ if __name__ == "__main__":
                 " FF values")
 
     # simulations
+    init_seq = config.get("simulation", "init_seq") # file/none
+    init_seq_size = config.getint("simulation", "init_seq_size", fallback=None)
     sim_iter = config.getint("simulation", "iterations")
-    sim_dir = "{}/simulations".format(outdir)
-    sim_config = "{}/simulations_config.xml".format(sim_dir)
+    nb_classes = config.getint("simulation", "nb_classes")
+    class_pop_size = config.getint("simulation", "class_pop_size")
+    evo_params = dict()
+    evo_params["populationSize"] = config.getint("simulation", 
+            "init_pop_size", fallback=100)
+    evo_params["generationCount"] = config.getint("simulation", 
+            "generation_count", fallback=100)
+    evo_params["fitnessFreq"] = config.getfloat("simulation",
+            "fitness_freq", fallback=0.5)
+    evo_params["repDualInfection"] = config.getfloat("simulation",
+            "rep_dual_infection", fallback=0.0)
+    evo_params["repRecombination"] = config.getfloat("simulation", 
+            "rep_recombination", fallback=0.0)
+    evo_params["mutationRate"] = config.getfloat("simulation", 
+            "mutation_rate", fallback=0.5)
+    evo_params["transitionBias"] = config.getfloat("simulation", 
+            "transition_bias", fallback=5.0)
+
+    # Here we fix the initial seq for all iterations.
+    # Maybe we need to use different init seq for each iteration
+    # simulation init
+    if init_seq == "file":
+        simseqs = SeqCollection.read_bio_file(seq_file)
+        initseq = simseqs[random.randint(0, len(simseqs))]
+    else:
+        # writeSimXMLConfig of SantaSim will check if initSeq is an integer
+        initseq = init_seq_size
 
     # Check lowVarThreshold
     # #####################
@@ -150,7 +179,7 @@ if __name__ == "__main__":
 
     # SimDir folder
     ###############
-    sim_dir = os.path.join(sim_dir,"{}/{}".format(virus_name, evalType))
+    sim_dir = os.path.join(outdir,"simulations")
     makedirs(sim_dir, mode=0o700, exist_ok=True)
 
     ## K lengths to evaluate
@@ -187,19 +216,21 @@ if __name__ == "__main__":
 
     # If we have enough memory we can parallelize this loop
 
-    for iteration in range(1, sim_iter + 1):
+    for iteration in range(1, sim_iter+1):
         if verbose:
             print("\nEvaluating Simulation {}".format(iteration), flush=True)
 
         # Construct names for simulation and classes files
         ###################################
-        sim_name = "simulation_{}".format(iteration)
-        cls_file = "{}/class_{}.csv".format(sim_dir, str(iteration))
+        sim_name = "sim_{}".format(iteration)
+        #cls_file = "{}/class_{}.csv".format(sim_dir, str(iteration))
 
         # Simulate viral population based on input fasta
         ################################################
-        sim = SantaSim(seq_file, cls_file, sim_config, sim_dir, sim_name, virusName = virus_name)
-        sim_file = sim.santaSim()
+        #sim = SantaSim(seq_file, cls_file, sim_config, sim_dir, sim_name, virusName=virus_name)
+        sim = SantaSim([initseq], nb_classes, class_pop_size, evo_params, 
+                sim_dir, sim_name, verbose=verbose)
+        sim_file, cls_file = sim()
 
         for klen in klen_list:
             if verbose:

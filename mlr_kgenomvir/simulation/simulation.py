@@ -25,18 +25,18 @@ class SantaSim():
     """docstring for santaSim."""
 
     santaPath = "{}/santa.jar".format(os.path.dirname(os.path.realpath(__file__)))
-    print(santaPath)
 
-    def __init__(self, initSeqs, nbClasses, evoParams, outDir, outName, verbose=0):
+    def __init__(self, initSeqs, nbClasses, classPopSize, evoParams, outDir, outName, verbose=0):
         self.initSeqs_ = initSeqs
         self.nbClasses_ = nbClasses
+        self.classPopSize_ = classPopSize
         self.evoParams_ = copy.deepcopy(evoParams)
         self.outDir_ = outDir
         self.outName_ = outName
         self.finalFasta_ = os.path.join(self.outDir_, self.outName_+".fa")
         self.finalClsFile_ = os.path.join(self.outDir_, self.outName_+".csv")
         self.verbose_ = verbose
-        
+ 
         if not isinstance(self.initSeqs_, list):
             raise TypeError("initSeqs_ should be a list of seqRecords")
 
@@ -52,11 +52,12 @@ class SantaSim():
         if len(self.initSeqs_) == 1:
             self.evoParams_["generationCount"] = self.evoParams_["generationCount"]//2
             initOutput = os.path.join(self.outDir_, self.outName_+"_init")
-            initFasta, initTree = self.santaSim(self.initSeqs_[0], "cinit", initOutput, self.evoParams_)
+            initFasta, initTree = self.santaSim(self.initSeqs_[0], "cinit", 
+                    initOutput, self.evoParams_)
 
             init_seq_col = SeqCollection.read_bio_file(initFasta)
             init_seq_cls = self.generateClasses(initTree, self.nbClasses_)
-            print(init_seq_cls.keys())
+            #print(init_seq_cls.keys())
             seq_names = []
             ancestral_seqs = []
             for c in init_seq_cls:
@@ -70,8 +71,10 @@ class SantaSim():
         # ancestral sequence for it class
         else:
             ancestral_seqs = self.initSeqs_
-        
+
         # Run Santasim for each ancestral sequence
+        # to simulate nbClasses
+        self.evoParams_["populationSize"] = self.classPopSize_
         parallel = Parallel(n_jobs=self.nbClasses_, prefer="processes", verbose=self.verbose_)
         output = os.path.join(self.outDir_, self.outName_+"_")
 
@@ -118,7 +121,6 @@ class SantaSim():
         linkage = hierarchy.ward(pdist(matrix))
         cutree = hierarchy.cut_tree(linkage, n_clusters = [nbClusters])
         classes = np.squeeze(cutree, axis=1)
-        #print(classes)
 
         for i, c in enumerate(classes):
             class_list[c].append(names[i].replace(" ", "_"))
@@ -175,6 +177,13 @@ class SantaSim():
 
         configFile = "{}.xml".format(outputFile)
 
+        if isinstance(sequence, (int)):
+            # if no sequence is fed and instead we have 
+            # the length of the default sequence
+            inoculum = "none"
+        else:
+            inoculum = "all"
+
         parser = et.XMLParser(remove_blank_text=False)
         root = et.Element("santa")
         replicates = et.SubElement(root, "replicates")
@@ -183,22 +192,19 @@ class SantaSim():
 
         fasta = et.SubElement(simulation, "genome")
         fasta_length = et.SubElement(fasta, "length")
-        fasta_length.text = str(len(sequence.seq))
-        fasta_feature = et.SubElement(fasta, "feature")
-        fasta_feature_name = et.SubElement(fasta_feature, "name")
-        fasta_feature_name.text = str(sequence.id)
-        fasta_feature_type = et.SubElement(fasta_feature, "type")
-        fasta_feature_type.text = "nucleotide"
-        fasta_feature_coords = et.SubElement(fasta_feature, "coordinates")
-        fasta_feature_coords.text = "1-{}".format(str(len(sequence.seq)))
-        fasta_sq = et.SubElement(fasta, "sequences")
-        fasta_sq.text = str(cls.normaliseNucleotide(sequence.seq))
+        
+        if inoculum == "none":
+            fasta_length.text = sequence
+        else:
+            fasta_length.text = str(len(sequence.seq))
+            fasta_sq = et.SubElement(fasta, "sequences")
+            fasta_sq.text = str(cls.normaliseNucleotide(sequence.seq))
 
         pop = et.SubElement(simulation, "population")
         pop_size = et.SubElement(pop, "populationSize")
         pop_size.text = str(populationSize)
         pop_inoculum = et.SubElement(pop, "inoculum")
-        pop_inoculum.text = "random"
+        pop_inoculum.text = inoculum
 
         fitness = et.SubElement(simulation, "fitnessFunction")
         fitness_freq = et.SubElement(fitness, "frequencyDependentFitness")
