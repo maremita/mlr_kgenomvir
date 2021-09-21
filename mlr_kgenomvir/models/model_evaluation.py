@@ -423,6 +423,40 @@ def make_clf_score_dataframes(clf_covs, rows, nom_scores, max_iter):
     return df_scores
 
 
+def average_scores_dataframes(list_scores):
+    """
+    The function compute the mean values of several dataframes.
+    The dataframes are distributed by classifier type and contain 
+    mean and std scores.
+    The function is used in simulation-based evaluation scripts
+    """
+    # The std of scores must be converted 
+    # to variance before computing their means as in:
+    # https://stats.stackexchange.com/questions/25848/how-to-sum-a-standard-deviation
+
+    # list_scores: [{"clf_L1": {"mean": df, "std": df}, ..}, ..]
+    # Dataframes have the same rows and columns.
+    # Each element in list_scores corresponds to the result of an iteration
+    # of the simulation and its produced by make_clf_score_dataframes function.
+
+    df_scores = defaultdict(dict)
+    df_means = defaultdict(pd.DataFrame)
+    df_vars = defaultdict(pd.DataFrame)
+
+    clf_names = list_scores[0].keys() # get names of classifiers
+
+    for i in range(len(list_scores)):
+        for clf in clf_names:
+            df_means[clf] = pd.concat([df_means[clf], list_scores[i][clf]["mean"]])
+            df_vars[clf] = pd.concat([df_vars[clf], list_scores[i][clf]["std"]**2])
+
+    for clf in clf_names:
+        df_scores[clf]["mean"] = df_means[clf].groupby(level=0).mean()
+        df_scores[clf]["std"] = df_vars[clf].groupby(level=0).mean().apply(np.sqrt)
+
+    return df_scores
+
+
 def plot_cv_figure(scores, score_labels, x_values, xlabel,  out_file):
     fig_format = "png"
     #fig_format = "eps"

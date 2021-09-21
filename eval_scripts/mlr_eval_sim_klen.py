@@ -5,6 +5,7 @@ from mlr_kgenomvir.data.build_cv_data import build_load_save_cv_data
 from mlr_kgenomvir.models.model_evaluation import perform_mlr_cv
 from mlr_kgenomvir.models.model_evaluation import compile_score_names
 from mlr_kgenomvir.models.model_evaluation import make_clf_score_dataframes
+from mlr_kgenomvir.models.model_evaluation import average_scores_dataframes
 from mlr_kgenomvir.models.model_evaluation import plot_cv_figure
 from mlr_kgenomvir.utils import str_to_list
 from mlr_kgenomvir.utils import get_stats
@@ -215,6 +216,18 @@ if __name__ == "__main__":
 
     parallel = Parallel(n_jobs=n_mainJobs, prefer="processes", verbose=verbose)
 
+    # Collect score results of all simulation iterations in sim_scores
+    sim_scores = []
+
+    str_lr = ""
+    if _module == "pytorch_mlr":
+        str_lr = format(_learning_rate, '.0e') if _learning_rate not in list(
+                range(0, 10)) else str(_learning_rate)
+        str_lr = "_LR"+str_lr
+
+    str_lambda = format(_lambda, '.0e') if _lambda not in list(
+            range(0, 10)) else str(_lambda)
+
     for iteration in range(1, sim_iter+1):
         if verbose:
             print("\nEvaluating Simulation {}".format(iteration), flush=True)
@@ -235,8 +248,8 @@ if __name__ == "__main__":
 
             # Construct prefix for output files
             ###################################
-            prefix_out = os.path.join(outdir, "{}_{}_K{}{}_sim{}_{}".format(
-                virus_name, evalType, tag_kf, klen, iteration, tag_fg))
+            prefix_out = os.path.join(outdir, "{}_{}_sim{}_K{}{}_{}".format(
+                virus_name, evalType, iteration, tag_kf, klen, tag_fg))
 
             ## Generate training and testing data
             ####################################
@@ -260,6 +273,13 @@ if __name__ == "__main__":
             if verbose:
                 print("X_train descriptive stats:\n{}".format(
                     get_stats(cv_data["X_train"])))
+            
+            ## Train and compute performance of classifiers
+            ###############################################
+            # mlr_scores is a list of dictionaries of scores
+            # each dict (returned by perform_mlr_cv) is a set of scores
+            # of a different regularized clf trained with klen-computed data
+            # [{"score_1":[mean, std], "score_2":[mean, std],..},..]
 
             mlr_scores = parallel(delayed(perform_mlr_cv)(clone(mlr), clf_name,
                 clf_penalty, _lambda, cv_data, prefix_out, metric=eval_metric,
@@ -268,36 +288,55 @@ if __name__ == "__main__":
                 verbose=verbose, random_state=randomState)
                 for clf_name, clf_penalty in zip(clf_names, clf_penalties))
 
+            # Add the scores of current klen to clf_scores dictionary
             for i, clf_name in enumerate(clf_names):
                 clf_scores[clf_name][str(klen)] = mlr_scores[i]
 
+        # Rearrange clf_scores into dict of mean and std dataframes (df)
+        # {"clf_L1": {"mean": df, "std": df},..}
+        # dfs have the same rows and columns. 
+        # Rows correspond to the  main evaluation hyperparams:
+        #                    (coverage|lambda|k|learning_rate)
+        # Columns are score_names
         scores_dfs = make_clf_score_dataframes(clf_scores, klen_list_str,
             score_names, _max_iter)
+        
+        sim_scores.append(scores_dfs)
 
-        ## Save and Plot results
-        ########################
-        str_lr = ""
-        if _module == "pytorch_mlr":
-            str_lr = format(_learning_rate, '.0e') if _learning_rate not in list(
-                    range(0, 10)) else str(_learning_rate)
-            str_lr = "_LR"+str_lr
-
-        str_lambda = format(_lambda, '.0e') if _lambda not in list(
-                range(0, 10)) else str(_lambda)
-
-        outFile = os.path.join(outdir,
-                "{}_{}_K{}{}to{}_{}{}{}_A{}_KLENGTHS_sim{}_{}_{}".format(virus_name,
-                    evalType, tag_kf, klen_list[0], klen_list[-1], tag_fg,
-                    mlr_name, str_lr, str_lambda, iteration, eval_metric, avrg_metric))
+        ## Save and Plot iteration results
+        ##################################
+        outFileSim = os.path.join(outdir,
+                "{}_{}_sim{}_K{}{}to{}_{}{}{}_A{}_KLENGTHS_{}_{}".format(virus_name,
+                    evalType, iteration, tag_kf, klen_list[0], klen_list[-1], tag_fg,
+                    mlr_name, str_lr, str_lambda, eval_metric, avrg_metric))
 
         if saveResults:
-            write_log(scores_dfs, config, outFile+".log")
-            with open(outFile+".jb", 'wb') as fh:
+            write_log(scores_dfs, config, outFileSim+".log")
+            with open(outFileSim+".jb", 'wb') as fh:
                 dump(scores_dfs, fh)
 
         if plotResults:
-            plot_cv_figure(scores_dfs, score_names, klen_list_str, "K length",
-                    outFile)
+            plot_cv_figure(scores_dfs, score_names, klen_list_str,
+                    "K length",outFileSim)
+
+    # Compute the mean of all scores per classifier and by mean and std
+    sim_scores_dfs = average_scores_dataframes(sim_scores)
+
+    ## Save and Plot final results
+    ##############################
+    outFile = os.path.join(outdir,
+            "{}_{}_sim_K{}{}to{}_{}{}{}_A{}_KLENGTHS_{}_{}".format(virus_name,
+                evalType, tag_kf, klen_list[0], klen_list[-1], tag_fg,
+                mlr_name, str_lr, str_lambda, eval_metric, avrg_metric))
+
+    if saveResults:
+        write_log(sim_scores_dfs, config, outFile+".log")
+        with open(outFile+".jb", 'wb') as fh:
+            dump(sim_scores_dfs, fh)
+
+    if plotResults:
+        plot_cv_figure(sim_scores_dfs, score_names, klen_list_str, "K length",
+                outFile)
 
     if verbose:
         print("\nFin normale du programme")
