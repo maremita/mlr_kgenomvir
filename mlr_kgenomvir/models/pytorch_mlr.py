@@ -363,7 +363,9 @@ class MLR(BaseEstimator, ClassifierMixin):
         self.model.linear.weight.pow(2).sum()
         """
         w = self.model.linear.weight.data
-        w.add_(-self.l2_decay_scale, w)
+        #w.add_(-self.l2_decay_scale, w)
+        #TODO: To confirm if it has the same outcome as the previous version
+        w.add_(w, alpha=-self.l2_decay_scale)
 
     def _elasticnet(self):
         """

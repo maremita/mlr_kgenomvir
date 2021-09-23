@@ -35,11 +35,11 @@ def save_Xy_cv_data(data, cv_file):
 
 
 def get_module_versions():
-    versions = dict() 
+    versions = dict()
 
     versions["python"] = platform.python_version()
 
-    module_names = ["mlr_kgenomvir", "numpy", "scipy", "pandas", 
+    module_names = ["mlr_kgenomvir", "numpy", "scipy", "pandas",
             "sklearn", "Bio", "joblib", "matplotlib", "torch"]
 
     for module_name in module_names:
@@ -82,7 +82,7 @@ def get_stats(mat):
 
     if isinstance(mat, np.ndarray) or sp.issparse(mat):
         chaine = "\tShape {}\n".format(mat.shape)
-        chaine += "\tMemory ~{} MB\n".format(mat.nbytes/1e6) #approximation 
+        chaine += "\tMemory ~{} MB\n".format(mat.nbytes/1e6) #approximation
 
         if sp.issparse(mat):
             chaine += "\tSparsity {}\n".format(np.mean(mat.todense().ravel() == 0))
