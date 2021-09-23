@@ -9,7 +9,7 @@
 #################################
 
 __author__ = ["Amine Remita", "Nicolas De Montigny"]
-__date__   = "20210921"
-__version__ = "0.10.3"
+__date__   = "20210922"
+__version__ = "0.10.4"
 
 __all__ = ['data', 'models', 'simulation', 'utils']

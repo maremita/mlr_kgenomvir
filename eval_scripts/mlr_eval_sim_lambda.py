@@ -5,6 +5,7 @@ from mlr_kgenomvir.data.build_cv_data import build_load_save_cv_data
 from mlr_kgenomvir.models.model_evaluation import perform_mlr_cv
 from mlr_kgenomvir.models.model_evaluation import compile_score_names
 from mlr_kgenomvir.models.model_evaluation import make_clf_score_dataframes
+from mlr_kgenomvir.models.model_evaluation import average_scores_dataframes
 from mlr_kgenomvir.models.model_evaluation import plot_cv_figure
 from mlr_kgenomvir.utils import str_to_list
 from mlr_kgenomvir.utils import get_stats
@@ -30,7 +31,7 @@ from mlr_kgenomvir.models.pytorch_mlr import MLR
 from sklearn.linear_model import LogisticRegression
 
 
-__author__ = ["amine","nicolas"]
+__author__ = ["amine", "nicolas"]
 
 
 """
@@ -49,6 +50,7 @@ if __name__ == "__main__":
     print("RUN {}".format(sys.argv[0]), flush=True)
 
     # Get argument values from ini file
+    ###################################
     config_file = sys.argv[1]
     config = configparser.ConfigParser(
             interpolation=configparser.ExtendedInterpolation())
@@ -66,7 +68,8 @@ if __name__ == "__main__":
     # seq_rep
     klen = config.getint("seq_rep", "k")
     fullKmers = config.getboolean("seq_rep", "full_kmers")
-    lowVarThreshold = config.get("seq_rep", "low_var_threshold", fallback=None)
+    lowVarThreshold = config.get("seq_rep", "low_var_threshold",
+            fallback=None)
 
     # evaluation
     evalType = config.get("evaluation", "eval_type") # CC, CF or FF
@@ -76,7 +79,8 @@ if __name__ == "__main__":
     avrg_metric = config.get("evaluation", "avrg_metric")
 
     # classifier
-    _module = config.get("classifier", "module") # sklearn or pytorch_mlr
+    _module = config.get("classifier", "module")
+    # sklearn or pytorch_mlr
     _tol = config.getfloat("classifier", "tol")
     # ........ main evaluation parameters ..............
     _lambdas = config.get("classifier", "lambda")
@@ -87,8 +91,10 @@ if __name__ == "__main__":
     _penalties = config.get("classifier", "penalty")
 
     if _module == "pytorch_mlr":
-        _learning_rate = config.getfloat("classifier", "learning_rate")
-        _n_iter_no_change = config.getint("classifier", "n_iter_no_change")
+        _learning_rate = config.getfloat("classifier",
+                "learning_rate")
+        _n_iter_no_change = config.getint("classifier",
+                "n_iter_no_change")
         _device = config.get("classifier", "device")
 
     # settings
@@ -104,19 +110,24 @@ if __name__ == "__main__":
     if evalType in ["CC", "CF", "FF"]:
         if evalType in ["CF", "FF"]:
             try:
-                fragmentSize = config.getint("seq_rep", "fragment_size")
-                fragmentCount = config.getint("seq_rep", "fragment_count")
-                fragmentCov = config.getfloat("seq_rep", "fragment_cov")
+                fragmentSize = config.getint("seq_rep",
+                        "fragment_size")
+                fragmentCount = config.getint("seq_rep",
+                        "fragment_count")
+                fragmentCov = config.getfloat("seq_rep",
+                        "fragment_cov")
 
             except configparser.NoOptionError:
                 raise configparser.NoOptionError()
     else:
-        raise ValueError("evalType argument have to be one of CC, CF or"+
+        raise ValueError(
+                "evalType argument have to be one of CC, CF or"+
                 " FF values")
 
     # simulations
     init_seq = config.get("simulation", "init_seq") # file/none
-    init_seq_size = config.getint("simulation", "init_seq_size", fallback=None)
+    init_seq_size = config.getint("simulation", "init_seq_size",
+            fallback=None)
     sim_iter = config.getint("simulation", "iterations")
     nb_classes = config.getint("simulation", "nb_classes")
     class_pop_size = config.getint("simulation", "class_pop_size")
@@ -143,7 +154,8 @@ if __name__ == "__main__":
         simseqs = SeqCollection.read_bio_file(seq_file)
         initseq = simseqs[random.randint(0, len(simseqs))]
     else:
-        # writeSimXMLConfig of SantaSim will check if initSeq is an integer
+        # writeSimXMLConfig of SantaSim will check if initSeq 
+        # is an integer
         initseq = init_seq_size
 
     # Check lowVarThreshold
@@ -153,8 +165,8 @@ if __name__ == "__main__":
     else:
         lowVarThreshold = float(lowVarThreshold)
 
-    # Construct prefix for output files
-    ###################################
+    ## Tags for prefix outputs
+    ##########################
     if fullKmers:
         tag_kf = "F"
     elif lowVarThreshold:
@@ -173,9 +185,16 @@ if __name__ == "__main__":
                 'fragment_cov':fragmentCov,
                 'fragment_count':fragmentCount}
 
+    str_lr = ""
+    if _module == "pytorch_mlr":
+        str_lr = format(_learning_rate, '.0e') if _learning_rate not in list(
+                range(0, 10)) else str(_learning_rate)
+        str_lr = "_LR"+str_lr
+
     # OutDir folder
     ###############
-    outdir = os.path.join(outdir,"{}/{}".format(virus_name, evalType))
+    outdir = os.path.join(outdir,"{}/{}".format(virus_name,
+        evalType))
     makedirs(outdir, mode=0o700, exist_ok=True)
 
     # SimDir folder
@@ -191,22 +210,22 @@ if __name__ == "__main__":
 
     ## MLR initialization
     #####################
-
     if _module == "pytorch_mlr":
-        mlr = MLR(tol=_tol, learning_rate=_learning_rate, l1_ratio=None,
-                solver=_solver, max_iter=_max_iter, validation=False,
+        mlr = MLR(tol=_tol, learning_rate=_learning_rate,
+                l1_ratio=None, solver=_solver, max_iter=_max_iter,
+                validation=False,
                 n_iter_no_change=_n_iter_no_change, device=_device,
                 random_state=randomState, verbose=verbose)
         mlr_name = "PTMLR"
 
     else:
-        mlr = LogisticRegression(multi_class="multinomial", tol=_tol,
-                solver=_solver, max_iter=_max_iter, verbose=0, l1_ratio=None)
+        mlr = LogisticRegression(multi_class="multinomial",
+                tol=_tol, solver=_solver, max_iter=_max_iter,
+                verbose=0, l1_ratio=None)
         mlr_name = "SKMLR"
 
     ## Evaluate MLR models
     ######################
-
     # "l1", "l2", "elasticnet"
     clf_penalties = str_to_list(_penalties)
     clf_names = [mlr_name+"_"+pen.upper() for pen in clf_penalties]
@@ -214,11 +233,17 @@ if __name__ == "__main__":
     clf_scores = defaultdict(dict)
     score_names = compile_score_names(eval_metric, avrg_metric)
 
-    parallel = Parallel(n_jobs=n_mainJobs, prefer="processes", verbose=verbose)
+    parallel = Parallel(n_jobs=n_mainJobs, prefer="processes", 
+            verbose=verbose)
+
+    # Collect score results of all simulation iterations in 
+    # sim_scores
+    sim_scores = []
 
     for iteration in range(1,sim_iter + 1):
         if verbose:
-            print("\nEvaluating Simulation {}".format(iteration), flush=True)
+            print("\nEvaluating Simulation {}".format(iteration),
+                    flush=True)
 
         # Construct names for simulation and classes files
         ###################################
@@ -226,14 +251,15 @@ if __name__ == "__main__":
 
         # Simulate viral population based on input fasta
         ################################################
-        sim = SantaSim([initseq], nb_classes, class_pop_size, evo_params, 
-                sim_dir, sim_name, verbose=verbose)
+        sim = SantaSim([initseq], nb_classes, class_pop_size,
+                evo_params, sim_dir, sim_name, verbose=verbose)
         sim_file, cls_file = sim()
 
         # Construct prefix for output files
         ###################################
-        prefix_out = os.path.join(outdir, "{}_{}_K{}{}_sim{}_{}".format(
-            virus_name, evalType, tag_kf, klen, iteration, tag_fg))
+        prefix_out = os.path.join(outdir,
+                "{}_{}_sim{}_K{}{}_{}".format(virus_name, 
+                    evalType, iteration, tag_kf, klen, tag_fg))
 
         ## Generate training and testing data
         ####################################
@@ -258,12 +284,15 @@ if __name__ == "__main__":
             print("X_train descriptive stats:\n{}".format(
                 get_stats(cv_data["X_train"])))
 
-        for i, (clf_name, clf_penalty) in enumerate(zip(clf_names, clf_penalties)):
+        for i, (clf_name, clf_penalty) in enumerate(
+                zip(clf_names, clf_penalties)):
             if verbose:
-                print("\n{}. Evaluating {}".format(i, clf_name), flush=True)
+                print("\n{}. Evaluating {}".format(i, clf_name),
+                        flush=True)
 
-            mlr_scores = parallel(delayed(perform_mlr_cv)(clone(mlr), clf_name,
-                clf_penalty, _lambda, cv_data, prefix_out, metric=eval_metric,
+            mlr_scores = parallel(delayed(perform_mlr_cv)(
+                clone(mlr), clf_name, clf_penalty, _lambda,
+                cv_data, prefix_out, metric=eval_metric,
                 average_metric=avrg_metric, n_jobs=n_cvJobs,
                 save_model=saveModels, save_result=saveResults,
                 verbose=verbose, random_state=randomState)
@@ -272,30 +301,48 @@ if __name__ == "__main__":
             for j, lambda_str in enumerate(lambdas_str):
                 clf_scores[clf_name][lambda_str] = mlr_scores[j]
 
-        scores_dfs = make_clf_score_dataframes(clf_scores, lambdas_str,
-            score_names, _max_iter)
+        scores_dfs = make_clf_score_dataframes(clf_scores, 
+                lambdas_str, score_names, _max_iter)
 
-        ## Save and Plot results
-        ########################
-        str_lr = ""
-        if _module == "pytorch_mlr":
-            str_lr = format(_learning_rate, '.0e') if _learning_rate not in list(
-                    range(0, 10)) else str(_learning_rate)
-            str_lr = "_LR"+str_lr
+        sim_scores.append(scores_dfs)
 
-        outFile = os.path.join(outdir,
-                "{}_{}_K{}{}_{}{}{}_A{}to{}_LAMBDAS_sim{}_{}_{}".format(virus_name,
-                    evalType, tag_kf, klen, tag_fg, mlr_name, str_lr,
-                    lambdas_str[0], lambdas_str[-1], iteration, eval_metric, avrg_metric))
+        ## Save and Plot iteration results
+        ##################################
+        outFileSim = os.path.join(outdir, 
+                "{}_{}_sim{}_K{}{}_{}{}{}_A{}to{}_LAMBDAS_{}_{}".format(
+                    virus_name, evalType, iteration, tag_kf, klen,
+                    tag_fg, mlr_name, str_lr, lambdas_str[0],
+                    lambdas_str[-1], eval_metric, avrg_metric))
 
         if saveResults:
-            write_log(scores_dfs, config, outFile+".log")
-            with open(outFile+".jb", 'wb') as fh:
+            write_log(scores_dfs, config, outFileSim+".log")
+            with open(outFileSim+".jb", 'wb') as fh:
                 dump(scores_dfs, fh)
 
         if plotResults:
-            plot_cv_figure(scores_dfs, score_names, lambdas_str, "Lambda",
-                    outFile)
+            plot_cv_figure(scores_dfs, score_names, lambdas_str,
+                    "Lambda", outFileSim)
+
+    # Compute the mean of all scores per classifier
+    # and by mean and std
+    sim_scores_dfs = average_scores_dataframes(sim_scores)
+
+    ## Save and Plot final results
+    ##############################
+    outFile = os.path.join(outdir,
+            "{}_{}_sim_K{}{}_{}{}{}_A{}to{}_LAMBDAS_{}_{}".format(
+                virus_name, evalType, tag_kf, klen, tag_fg,
+                mlr_name, str_lr, lambdas_str[0], lambdas_str[-1],
+                eval_metric, avrg_metric))
+
+    if saveResults:
+        write_log(sim_scores_dfs, config, outFile+".log")
+        with open(outFile+".jb", 'wb') as fh:
+            dump(sim_scores_dfs, fh)
+
+    if plotResults:
+        plot_cv_figure(sim_scores_dfs, score_names, lambdas_str,
+                "Lambda", outFile)
 
     if verbose:
         print("\nFin normale du programme")
