@@ -447,17 +447,27 @@ def average_scores_dataframes(list_scores):
 
     for i in range(len(list_scores)):
         for clf in clf_names:
-            df_means[clf] = pd.concat([df_means[clf], list_scores[i][clf]["mean"]])
-            df_vars[clf] = pd.concat([df_vars[clf], list_scores[i][clf]["std"]**2])
+            df_means[clf] = pd.concat([df_means[clf], 
+                list_scores[i][clf]["mean"]])
+            df_vars[clf] = pd.concat([df_vars[clf],
+                list_scores[i][clf]["std"]**2])
 
     for clf in clf_names:
-        df_scores[clf]["mean"] = df_means[clf].groupby(level=0).mean()
-        df_scores[clf]["std"] = df_vars[clf].groupby(level=0).mean().apply(np.sqrt)
+        df_scores[clf]["mean"] = df_means[clf].groupby(level=0,
+                sort=False).mean()
+        df_scores[clf]["std"] = df_vars[clf].groupby(level=0,
+                sort=False).mean().apply(np.sqrt)
 
     return df_scores
 
 
-def plot_cv_figure(scores, score_labels, x_values, xlabel,  out_file):
+def plot_cv_figure(
+        scores,
+        score_labels, 
+        x_values, 
+        xlabel, 
+        out_file):
+
     fig_format = "png"
     #fig_format = "eps"
     fig_dpi = 150
