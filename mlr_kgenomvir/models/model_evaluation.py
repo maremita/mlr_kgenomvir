@@ -30,8 +30,10 @@ def compute_clf_coef_measures(
         y_test,
         prefix,
         return_coefs=True,
-        save_model=False,
-        save_result=False,
+        load_model=False,
+        save_model=True,
+        load_result=False,
+        save_result=True,
         verbose=0,
         random_state=42):
 
@@ -57,9 +59,8 @@ def compute_clf_coef_measures(
     ## Try to load the model and results from files
     ## ############################################
     # Load model
-    load_model = False
-    if os.path.isfile(clf_file) and save_model and return_coefs:
-
+    model_loaded = False
+    if os.path.isfile(clf_file) and load_model:
         if verbose:
             print("\nLoading classifier from {} file".format(
                 clf_file), flush=True)
@@ -68,10 +69,10 @@ def compute_clf_coef_measures(
             classifier = clf_load(fh)
             coeffs = classifier.coef_
             intercepts = classifier.intercept_
-            load_model = True
+            model_loaded = True
 
     # Load results
-    if os.path.isfile(measures_file) and save_result:
+    if os.path.isfile(measures_file) and load_result:
 
         if verbose:
             print("\nLoading measures from {} file".format(
@@ -83,37 +84,30 @@ def compute_clf_coef_measures(
             if verbose == 3:
                 pprint(measures)
 
-        if load_model:
+        if model_loaded and return_coefs:
             return coeffs, intercepts, measures
         else:
             return measures
 
-    ## Compute the model and the results
+    ## Train classifier and compute coefficients
+    ############################################
+    if not model_loaded:
+        classifier.model_name = clf_name
+        if verbose:
+            print("\nTrain-test the model {}".format(clf_name), flush=True)
+
+        # Train classifier
+        start = time.time()
+        classifier.fit(X_train, y_train)
+        end = time.time()
+        coeffs = classifier.coef_
+        intercepts = classifier.intercept_
+        measures["fit_time"] = end - start
+        model_loaded = True
+ 
+    ## Complete measure results and data
     ## #################################
-    classifier.model_name = clf_name
     measures['model_name'] = clf_name
-
-    if sp.issparse(X_train):
-        measures['X_train_sparsity'] = np.mean(X_train.todense().ravel() == 0)
-        measures['X_test_sparsity'] = np.mean(X_test.todense().ravel() == 0)
-    else:
-        measures['X_train_sparsity'] = np.mean(X_train.ravel() == 0)
-        measures['X_test_sparsity'] = np.mean(X_test.ravel() == 0)
-
-    ## Compute classifier coefficients and performance
-    ##################################################
-    if verbose:
-        print("\nTrain-test the model {}".format(clf_name), flush=True)
-
-    # Train classifier
-    start = time.time()
-    classifier.fit(X_train, y_train)
-    end = time.time()
-    measures["fit_time"] = end - start
- 
-    coeffs = classifier.coef_
-    intercepts = classifier.intercept_
- 
     measures['coef_sparsity'] = np.mean(coeffs.ravel() == 0)
 
     if hasattr(classifier, 'n_iter_'):
@@ -140,6 +134,15 @@ def compute_clf_coef_measures(
     if hasattr(classifier, 'epoch_time_'):
         measures['epoch_time'] = classifier.epoch_time_
 
+    if sp.issparse(X_train):
+        measures['X_train_sparsity'] = np.mean(X_train.todense().ravel() == 0)
+        measures['X_test_sparsity'] = np.mean(X_test.todense().ravel() == 0)
+    else:
+        measures['X_train_sparsity'] = np.mean(X_train.ravel() == 0)
+        measures['X_test_sparsity'] = np.mean(X_test.ravel() == 0)
+
+    ## Compute classifier performance
+    #################################
     # Prediction on train
     y_train_pred = classifier.predict(X_train)
 
@@ -164,7 +167,8 @@ def compute_clf_coef_measures(
         measures["test_scores"][average] = dict()
  
         # scores on train (evaluate under/over-fitting)
-        tr_scores = precision_recall_fscore_support(y_train, y_train_pred,
+        tr_scores = precision_recall_fscore_support(
+                y_train, y_train_pred,
                 average=average)
 
         # scores on test
@@ -179,12 +183,14 @@ def compute_clf_coef_measures(
     report = classification_report(y_test, y_pred, output_dict=True)
     measures["report"] = report 
 
+    ## Save Model and results
+    #########################
     if save_model:
         with open(clf_file, 'wb') as fh:
             clf_save(classifier, fh)
 
     if save_result:
-        np.savez(measures_file, measures = measures)
+        np.savez(measures_file, measures=measures)
 
     if verbose == 3:
         pprint(measures)
@@ -254,8 +260,10 @@ def perform_mlr_cv(
         metric="fscore",
         average_metric="weighted",
         n_jobs=1,
-        save_model=False,
-        save_result=False,
+        load_model=False,
+        save_model=True,
+        load_result=False,
+        save_result=True,
         verbose=0,
         random_state=42):
 
@@ -325,8 +333,9 @@ def perform_mlr_cv(
         clone(classifier), clf_name+"_fold{}".format(fold),
         X_train[train_ind], X_test[test_ind], y_train[train_ind],
         y_test[test_ind], prefix, return_coefs=False,
-        save_model=save_model, save_result=save_result, verbose=verbose,
-        random_state=random_state) 
+        load_model=load_model, save_model=save_model, 
+        load_result=load_result, save_result=save_result,
+        verbose=verbose, random_state=random_state) 
         for fold, (train_ind, test_ind) in enumerate(cv_indices))
 
     #print(cv_scores)

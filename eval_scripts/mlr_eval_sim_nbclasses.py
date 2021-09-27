@@ -99,12 +99,24 @@ if __name__ == "__main__":
     # settings
     n_mainJobs = config.getint("settings", "n_main_jobs")
     n_cvJobs = config.getint("settings", "n_cv_jobs")
-    verbose = config.getint("settings", "verbose")
-    saveData = config.getboolean("settings", "save_data")
-    saveModels = config.getboolean("settings", "save_models")
-    saveResults = config.getboolean("settings", "save_results")
-    plotResults = config.getboolean("settings", "plot_results")
-    randomState = config.getint("settings", "random_state")
+    verbose = config.getint("settings", "verbose",
+            fallback=0)
+    loadData = config.getboolean("settings", "load_data",
+            fallback=False)
+    saveData = config.getboolean("settings", "save_data",
+            fallback=True)
+    loadModels = config.getboolean("settings", "load_models",
+            fallback=False)
+    saveModels = config.getboolean("settings", "save_models",
+            fallback=True)
+    loadResults = config.getboolean("settings", "load_results",
+            fallback=False)
+    saveResults = config.getboolean("settings", "save_results",
+            fallback=True)
+    plotResults = config.getboolean("settings", "plot_results",
+            fallback=True)
+    randomState = config.getint("settings", "random_state",
+            fallback=42)
 
     if evalType in ["CC", "CF", "FF"]:
         if evalType in ["CF", "FF"]:
@@ -281,6 +293,7 @@ if __name__ == "__main__":
                     low_var_threshold=lowVarThreshold,
                     n_splits=cv_folds,
                     test_size=testSize,
+                    load_data=loadData,
                     save_data=saveData,
                     random_state=randomState,
                     verbose=verbose,
@@ -298,7 +311,8 @@ if __name__ == "__main__":
                 clone(mlr), clf_name, clf_penalty, _lambda,
                 cv_data, prefix_out, metric=eval_metric,
                 average_metric=avrg_metric, n_jobs=n_cvJobs,
-                save_model=saveModels, save_result=saveResults,
+                load_model=loadModels, save_model=saveModels,
+                load_result=loadResults, save_result=saveResults,
                 verbose=verbose, random_state=randomState)
                 for clf_name, clf_penalty in zip(clf_names,
                     clf_penalties))
