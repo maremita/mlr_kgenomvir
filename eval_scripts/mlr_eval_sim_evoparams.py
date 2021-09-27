@@ -36,9 +36,8 @@ __author__ = ["amine"]
 
 """
 The script evaluates the performance of different 
-regularized MLR models with function to the number
-of classes for virus genome classification of a
-simulated population
+regularized MLR models with function to evolutionary
+parameters used to simulate virus genome populations
 """
 
 
@@ -128,25 +127,34 @@ if __name__ == "__main__":
     init_seq_size = config.getint("simulation", "init_seq_size",
             fallback=None)
     sim_iter = config.getint("simulation", "iterations")
-    # ........ main evaluation parameters ..............
-    nb_class_list = config.get("simulation", "nb_classes")
-    # ..................................................
+    nb_classes = config.getint("simulation", "nb_classes")
     class_pop_size = config.getint("simulation", "class_pop_size")
+    # ........ main evaluation parameters ..............
     evo_params = dict()
-    evo_params["populationSize"] = config.getint("simulation", 
-            "init_pop_size", fallback=100)
-    evo_params["generationCount"] = config.getint("simulation", 
-            "generation_count", fallback=100)
-    evo_params["fitnessFreq"] = config.getfloat("simulation",
-            "fitness_freq", fallback=0.5)
-    evo_params["repDualInfection"] = config.getfloat("simulation",
-            "rep_dual_infection", fallback=0.0)
-    evo_params["repRecombination"] = config.getfloat("simulation", 
-            "rep_recombination", fallback=0.0)
-    evo_params["mutationRate"] = config.getfloat("simulation", 
-            "mutation_rate", fallback=0.5)
-    evo_params["transitionBias"] = config.getfloat("simulation", 
-            "transition_bias", fallback=5.0)
+    evo_params["populationSize"] = config.get("simulation", 
+            "init_pop_size", fallback="100")
+    evo_params["generationCount"] = config.get("simulation", 
+            "generation_count", fallback="100")
+    evo_params["fitnessFreq"] = config.get("simulation",
+            "fitness_freq", fallback="0.5")
+    evo_params["repDualInfection"] = config.get("simulation",
+            "rep_dual_infection", fallback="0.0")
+    evo_params["repRecombination"] = config.get("simulation", 
+            "rep_recombination", fallback="0.0")
+    evo_params["mutationRate"] = config.get("simulation", 
+            "mutation_rate", fallback="0.5")
+    evo_params["transitionBias"] = config.get("simulation", 
+            "transition_bias", fallback="5.0")
+    # ..................................................
+
+    evo_param_names = dict() 
+    evo_param_names["populationSize"] = "Population size" 
+    evo_param_names["generationCount"] = "Generation count"
+    evo_param_names["fitnessFreq"] = "Fitness frequency"
+    evo_param_names["repDualInfection"] = "Dual infection probability"
+    evo_param_names["repRecombination"] = "Recombination probability" 
+    evo_param_names["mutationRate"] = "Mutation rate"
+    evo_param_names["transitionBias"] = "Transition bias" 
 
     # Here we fix the initial seq for all iterations.
     # Maybe we need to use different init seq for each iteration
@@ -206,10 +214,27 @@ if __name__ == "__main__":
     sim_dir = os.path.join(outdir,"simulations")
     makedirs(sim_dir, mode=0o700, exist_ok=True)
 
-    ## Class nbs to evaluate
-    ########################
-    class_nbs = str_to_list(nb_class_list, cast=int)
-    class_nbs_str = [str(c) for c in class_nbs]
+    ## Evo parameters to evaluate
+    #############################
+    #class_nbs = str_to_list(nb_class_list, cast=int)
+    #class_nbs_str = [str(c) for c in class_nbs]
+
+    #evo_params
+    # Get the paramters to be assessed
+    for evo_param in evo_params:
+        if evo_param in ["populationSize", "generationCount"]:
+            cast_fun=int
+        else: 
+            cast_fun=float
+
+        values = str_to_list(evo_params[evo_param], cast=cast_fun)
+
+        if len(values) > 1:
+            evo_to_assess = evo_param
+            evo_values = values
+            evo_values_str = [str(e) for e in evo_values]
+        else:
+            evo_params[evo_param] = cast_fun(evo_params[evo_param])
 
     ## MLR initialization
     #####################
@@ -248,18 +273,20 @@ if __name__ == "__main__":
             print("\nEvaluating Simulation {}".format(iteration),
                     flush=True)
 
-        for class_nb in class_nbs:
+        for evo_value in evo_values:
             if verbose:
-                print("\nEvaluating class number {}".format(
-                    class_nb), flush=True)
+                print("\nEvaluating {} {}\n".format(
+                    evo_param_names[evo_to_assess], evo_value), flush=True)
+
+            evo_params[evo_to_assess] = evo_value
 
             # Construct names for simulation and classes files
             ##################################################
-            sim_name = "Sim{}_CL{}".format(iteration, class_nb)
+            sim_name = "Sim{}_EV{}".format(iteration, evo_value)
 
             # Simulate viral population based on input fasta
             ################################################
-            sim = SantaSim([initseq], class_nb, class_pop_size, 
+            sim = SantaSim([initseq], nb_classes, class_pop_size, 
                     evo_params, sim_dir, sim_name, verbose=verbose)
             sim_file, cls_file = sim()
 
@@ -303,23 +330,24 @@ if __name__ == "__main__":
                 for clf_name, clf_penalty in zip(clf_names,
                     clf_penalties))
 
-            # Add the scores of current class_nb to clf_scores
+            # Add the scores of current evo value to clf_scores
             for i, clf_name in enumerate(clf_names):
-                clf_scores[clf_name][str(class_nb)] = mlr_scores[i]
+                clf_scores[clf_name][str(evo_value)] = mlr_scores[i]
 
         # Rearrange clf_scores into dict of mean and std dataframes
         scores_dfs = make_clf_score_dataframes(clf_scores,
-                class_nbs_str, score_names, _max_iter)
+                evo_values_str, score_names, _max_iter)
  
         sim_scores.append(scores_dfs)
 
         ## Save and Plot iteration results
         ##################################
         outFileSim = os.path.join(outdir,
-                "{}_{}_Sim{}_CL{}to{}_K{}{}_{}{}{}_A{}_CLASSNBS_{}_{}".format(
-                    virus_name, evalType, iteration, class_nbs[0],
-                    class_nbs[-1], tag_kf, klen, tag_fg, mlr_name,
-                    str_lr, str_lambda, eval_metric, avrg_metric))
+                "{}_{}_Sim{}_EV{}to{}_K{}{}_{}{}{}_A{}_{}_{}_{}".format(
+                    virus_name, evalType, iteration, evo_values[0],
+                    evo_values[-1], tag_kf, klen, tag_fg, mlr_name,
+                    str_lr, str_lambda, evo_to_assess, eval_metric,
+                    avrg_metric))
 
         if saveResults:
             write_log(scores_dfs, config, outFileSim+".log")
@@ -327,8 +355,8 @@ if __name__ == "__main__":
                 dump(scores_dfs, fh)
 
         if plotResults:
-            plot_cv_figure(scores_dfs, score_names, class_nbs_str,
-                    "Number of classes", outFileSim)
+            plot_cv_figure(scores_dfs, score_names, evo_values_str,
+                    evo_param_names[evo_to_assess], outFileSim)
 
     # Compute the mean of all scores per classifier
     # and by mean and std
@@ -337,10 +365,11 @@ if __name__ == "__main__":
     ## Save and Plot final results
     ##############################
     outFile = os.path.join(outdir,
-                "{}_{}_Sim_CL{}to{}_K{}{}_{}{}{}_A{}_CLASSNBS_{}_{}".format(
-                    virus_name, evalType, class_nbs[0],
-                    class_nbs[-1], tag_kf, klen, tag_fg, mlr_name,
-                    str_lr, str_lambda, eval_metric, avrg_metric))
+                "{}_{}_Sim_EV{}to{}_K{}{}_{}{}{}_A{}_{}_{}_{}".format(
+                    virus_name, evalType, evo_values[0],
+                    evo_values[-1], tag_kf, klen, tag_fg, mlr_name,
+                    str_lr, str_lambda, evo_to_assess, eval_metric,
+                    avrg_metric))
 
     if saveResults:
         write_log(sim_scores_dfs, config, outFile+".log")
@@ -348,8 +377,8 @@ if __name__ == "__main__":
             dump(sim_scores_dfs, fh)
 
     if plotResults:
-        plot_cv_figure(sim_scores_dfs, score_names, class_nbs_str,
-                "Number of classes", outFile)
+        plot_cv_figure(sim_scores_dfs, score_names, evo_values_str,
+                evo_param_names[evo_to_assess], outFile)
 
     if verbose:
         print("\nFin normale du programme")
