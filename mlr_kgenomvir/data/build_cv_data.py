@@ -125,7 +125,7 @@ def build_load_save_cv_data(
         fragment_count=1000,
         n_splits=3,
         test_size=0.3,
-        load_data=False
+        load_data=False,
         save_data=True,
         random_state=42,
         verbose=1):

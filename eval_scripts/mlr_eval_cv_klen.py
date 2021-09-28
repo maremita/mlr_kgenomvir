@@ -270,7 +270,7 @@ if __name__ == "__main__":
             dump(scores_dfs, fh)
 
     if plotResults:
-        plot_cv_igure(scores_dfs, score_names, klen_list_str,
+        plot_cv_figure(scores_dfs, score_names, klen_list_str,
                 "K length", outFile)
 
     if verbose:
