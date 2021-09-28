@@ -1,6 +1,7 @@
 #################################
 ##                             ##
-## 2021(C) Nicolas de Montigny ##
+##  2021 (C) Amine M. Remita   ##
+##    & Nicolas De Montigny    ##
 ##                             ##
 ## Laboratoire Bioinformatique ##
 ## Pr. Abdoulaye Diallo Group  ##
@@ -8,6 +9,6 @@
 ##                             ##
 #################################
 
-__author__ = "Nicolas de Montigny"
+__author__ = ["Nicolas De Montigny", "Amine Remita"]
 
-__all__ = ["simulation","santa"]
+__all__ = ["simulation", "santa"]
