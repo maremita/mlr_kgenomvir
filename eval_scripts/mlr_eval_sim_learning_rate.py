@@ -99,12 +99,24 @@ if __name__ == "__main__":
     # settings
     n_mainJobs = config.getint("settings", "n_main_jobs")
     n_cvJobs = config.getint("settings", "n_cv_jobs")
-    verbose = config.getint("settings", "verbose")
-    saveData = config.getboolean("settings", "save_data")
-    saveModels = config.getboolean("settings", "save_models")
-    saveResults = config.getboolean("settings", "save_results")
-    plotResults = config.getboolean("settings", "plot_results")
-    randomState = config.getint("settings", "random_state")
+    verbose = config.getint("settings", "verbose",
+            fallback=0)
+    loadData = config.getboolean("settings", "load_data",
+            fallback=False)
+    saveData = config.getboolean("settings", "save_data",
+            fallback=True)
+    loadModels = config.getboolean("settings", "load_models",
+            fallback=False)
+    saveModels = config.getboolean("settings", "save_models",
+            fallback=True)
+    loadResults = config.getboolean("settings", "load_results",
+            fallback=False)
+    saveResults = config.getboolean("settings", "save_results",
+            fallback=True)
+    plotResults = config.getboolean("settings", "plot_results",
+            fallback=True)
+    randomState = config.getint("settings", "random_state",
+            fallback=42)
 
     if evalType in ["CC", "CF", "FF"]:
         if evalType in ["CF", "FF"]:
@@ -247,7 +259,8 @@ if __name__ == "__main__":
         # Simulate viral population based on input fasta
         ################################################
         sim = SantaSim([initseq], nb_classes, class_pop_size,
-                evo_params, sim_dir, sim_name, verbose=verbose)
+                evo_params, sim_dir, sim_name, load_data=loadData,
+                verbose=verbose)
         sim_file, cls_file = sim()
 
         # Construct prefix for output files
@@ -268,6 +281,7 @@ if __name__ == "__main__":
                 low_var_threshold=lowVarThreshold,
                 n_splits=cv_folds,
                 test_size=testSize,
+                load_data=loadData,
                 save_data=saveData,
                 random_state=randomState,
                 verbose=verbose,
@@ -288,12 +302,13 @@ if __name__ == "__main__":
             ## Train and compute performance of classifiers
             ###############################################
             mlr_scores = parallel(delayed(perform_mlr_cv)(
-                clone(mlr), clf_name, clf_penalty, _lambda,
-                cv_data, prefix_out, learning_rate=_lr,
-                metric=eval_metric, average_metric=avrg_metric, 
-                n_jobs=n_cvJobs, save_model=saveModels,
-                save_result=saveResults, verbose=verbose,
-                random_state=randomState) for _lr in lrs)
+                clone(mlr), clf_name, clf_penalty, _lambda, cv_data,
+                prefix_out, learning_rate=_lr, metric=eval_metric,
+                average_metric=avrg_metric, n_jobs=n_cvJobs, 
+                load_model=loadModels, save_model=saveModels,
+                load_result=loadResults, save_result=saveResults,
+                verbose=verbose, random_state=randomState) 
+                for _lr in lrs)
 
             # Add the scores of current clf_name to clf_scores
             for j, lr_str in enumerate(lrs_str):

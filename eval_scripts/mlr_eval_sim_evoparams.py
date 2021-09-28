@@ -31,13 +31,13 @@ from mlr_kgenomvir.models.pytorch_mlr import MLR
 from sklearn.linear_model import LogisticRegression
 
 
-__author__ = ["amine", "nicolas"]
+__author__ = ["amine"]
 
 
 """
-The script evaluates the effect of the coverage of fragments on
-genome positions on the performance of different regularized MLR
-models for virus genome classification of a simulated population
+The script evaluates the performance of different 
+regularized MLR models with function to evolutionary
+parameters used to simulate virus genome populations
 """
 
 
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     virus_name = config.get("virus", "virus_code")
 
     # io
-    seq_file = config.get("io", "seq_file")
+    seq_file = config.get("io", "seq_file", fallback=None)
     outdir = config.get("io", "outdir")
 
     # seq_rep
@@ -70,14 +70,9 @@ if __name__ == "__main__":
     fullKmers = config.getboolean("seq_rep", "full_kmers")
     lowVarThreshold = config.get("seq_rep", "low_var_threshold",
             fallback=None)
-    fragmentSize = config.getint("seq_rep", "fragment_size")
-    fragmentCount = config.getint("seq_rep", "fragment_count")
-    # ........ main evaluation parameters ..............
-    fragmentCovs = config.get("seq_rep", "fragment_cov")
-    # ..................................................
 
     # evaluation
-    evalType = config.get("evaluation", "eval_type") # CF or FF only
+    evalType = config.get("evaluation", "eval_type") # CC, CF or FF
     testSize = config.getfloat("evaluation", "test_size")
     cv_folds = config.getint("evaluation", "cv_folds")
     eval_metric = config.get("evaluation", "eval_metric")
@@ -94,7 +89,7 @@ if __name__ == "__main__":
     _penalties = config.get("classifier", "penalty")
 
     if _module == "pytorch_mlr":
-        _learning_rate = config.getfloat("classifier",
+        _learning_rate = config.getfloat("classifier", 
                 "learning_rate")
         _n_iter_no_change = config.getint("classifier",
                 "n_iter_no_change")
@@ -122,9 +117,22 @@ if __name__ == "__main__":
     randomState = config.getint("settings", "random_state",
             fallback=42)
 
-    if evalType not in ["CF", "FF"]:
+    if evalType in ["CC", "CF", "FF"]:
+        if evalType in ["CF", "FF"]:
+            try:
+                fragmentSize = config.getint("seq_rep",
+                        "fragment_size")
+                fragmentCount = config.getint("seq_rep", 
+                        "fragment_count")
+                fragmentCov = config.getfloat("seq_rep",
+                        "fragment_cov")
+
+            except configparser.NoOptionError:
+                raise configparser.NoOptionError()
+    else:
         raise ValueError(
-                "evalType argument have to be CF or FF values")
+                "evalType argument have to be one of CC, CF or"+
+                " FF values")
 
     # simulations
     init_seq = config.get("simulation", "init_seq") # file/none
@@ -133,21 +141,32 @@ if __name__ == "__main__":
     sim_iter = config.getint("simulation", "iterations")
     nb_classes = config.getint("simulation", "nb_classes")
     class_pop_size = config.getint("simulation", "class_pop_size")
+    # ........ main evaluation parameters ..............
     evo_params = dict()
-    evo_params["populationSize"] = config.getint("simulation", 
-            "init_pop_size", fallback=100)
-    evo_params["generationCount"] = config.getint("simulation", 
-            "generation_count", fallback=100)
-    evo_params["fitnessFreq"] = config.getfloat("simulation",
-            "fitness_freq", fallback=0.5)
-    evo_params["repDualInfection"] = config.getfloat("simulation",
-            "rep_dual_infection", fallback=0.0)
-    evo_params["repRecombination"] = config.getfloat("simulation", 
-            "rep_recombination", fallback=0.0)
-    evo_params["mutationRate"] = config.getfloat("simulation", 
-            "mutation_rate", fallback=0.5)
-    evo_params["transitionBias"] = config.getfloat("simulation", 
-            "transition_bias", fallback=5.0)
+    evo_params["populationSize"] = config.get("simulation", 
+            "init_pop_size", fallback="100")
+    evo_params["generationCount"] = config.get("simulation", 
+            "generation_count", fallback="100")
+    evo_params["fitnessFreq"] = config.get("simulation",
+            "fitness_freq", fallback="0.5")
+    evo_params["repDualInfection"] = config.get("simulation",
+            "rep_dual_infection", fallback="0.0")
+    evo_params["repRecombination"] = config.get("simulation", 
+            "rep_recombination", fallback="0.0")
+    evo_params["mutationRate"] = config.get("simulation", 
+            "mutation_rate", fallback="0.5")
+    evo_params["transitionBias"] = config.get("simulation", 
+            "transition_bias", fallback="5.0")
+    # ..................................................
+
+    evo_param_names = dict() 
+    evo_param_names["populationSize"] = "Population size" 
+    evo_param_names["generationCount"] = "Generation count"
+    evo_param_names["fitnessFreq"] = "Fitness frequency"
+    evo_param_names["repDualInfection"] = "Dual infection probability"
+    evo_param_names["repRecombination"] = "Recombination probability" 
+    evo_param_names["mutationRate"] = "Mutation rate"
+    evo_param_names["transitionBias"] = "Transition bias" 
 
     # Here we fix the initial seq for all iterations.
     # Maybe we need to use different init seq for each iteration
@@ -167,14 +186,25 @@ if __name__ == "__main__":
     else:
         lowVarThreshold = float(lowVarThreshold)
 
-    ## Tags for prefix ouputs
-    #########################
+    ## Tags for prefix outputs
+    ##########################
     if fullKmers:
         tag_kf = "F"
     elif lowVarThreshold:
         tag_kf = "V"
     else:
         tag_kf = "S"
+
+    tag_fg = ""
+    args_fg = dict()
+
+    if evalType in ["CF", "FF"]:
+        tag_fg = "FSZ{}_FCV{}_FCL{}_".format(str(fragmentSize),
+                str(fragmentCov), str(fragmentCount))
+
+        args_fg={'fragment_size':fragmentSize,
+                'fragment_cov':fragmentCov,
+                'fragment_count':fragmentCount}
 
     str_lr = ""
     if _module == "pytorch_mlr":
@@ -196,12 +226,27 @@ if __name__ == "__main__":
     sim_dir = os.path.join(outdir,"simulations")
     makedirs(sim_dir, mode=0o700, exist_ok=True)
 
-    # Coverage values to evaluate
+    ## Evo parameters to evaluate
     #############################
-    coverages = str_to_list(fragmentCovs, cast=float)
-    coverages_str = [str(c) for c in coverages]
-    tag_cov = "FSZ{}_FCV{}to{}_FCL{}".format(str(fragmentSize),
-            coverages_str[0], coverages_str[-1], str(fragmentCount))
+    #class_nbs = str_to_list(nb_class_list, cast=int)
+    #class_nbs_str = [str(c) for c in class_nbs]
+
+    #evo_params
+    # Get the paramters to be assessed
+    for evo_param in evo_params:
+        if evo_param in ["populationSize", "generationCount"]:
+            cast_fun=int
+        else: 
+            cast_fun=float
+
+        values = str_to_list(evo_params[evo_param], cast=cast_fun)
+
+        if len(values) > 1:
+            evo_to_assess = evo_param
+            evo_values = values
+            evo_values_str = [str(e) for e in evo_values]
+        else:
+            evo_params[evo_param] = cast_fun(evo_params[evo_param])
 
     ## MLR initialization
     #####################
@@ -228,42 +273,41 @@ if __name__ == "__main__":
     clf_scores = defaultdict(dict)
     score_names = compile_score_names(eval_metric, avrg_metric)
 
-    parallel = Parallel(n_jobs=n_mainJobs, prefer="processes",
+    parallel = Parallel(n_jobs=n_mainJobs, prefer="processes", 
             verbose=verbose)
 
     # Collect score results of all simulation iterations in
     # sim_scores
     sim_scores = []
 
-    for iteration in range(1,sim_iter + 1):
+    for iteration in range(1, sim_iter+1):
         if verbose:
             print("\nEvaluating Simulation {}".format(iteration),
                     flush=True)
 
-        # Construct names for simulation and classes files
-        ##################################################
-        sim_name = "sim_{}".format(iteration)
-
-        # Simulate viral population based on input fasta
-        ################################################
-        sim = SantaSim([initseq], nb_classes, class_pop_size,
-                evo_params, sim_dir, sim_name, load_data=loadData,
-                verbose=verbose)
-        sim_file, cls_file = sim()
-
-        for coverage in coverages:
+        for evo_value in evo_values:
             if verbose:
-                print("\nEvaluating coverage {}".format(coverage),
-                        flush=True)
+                print("\nEvaluating {} {}\n".format(
+                    evo_param_names[evo_to_assess], evo_value), flush=True)
+
+            evo_params[evo_to_assess] = evo_value
+
+            # Construct names for simulation and classes files
+            ##################################################
+            sim_name = "Sim{}_EV{}".format(iteration, evo_value)
+
+            # Simulate viral population based on input fasta
+            ################################################
+            sim = SantaSim([initseq], nb_classes, class_pop_size, 
+                    evo_params, sim_dir, sim_name, load_data=loadData,
+                    verbose=verbose)
+            sim_file, cls_file = sim()
 
             # Construct prefix for output files
             ###################################
-            tag_fg = "FSZ{}_FCV{}_FCL{}_".format(str(fragmentSize),
-            str(coverage), str(fragmentCount))
-
-            prefix_out = os.path.join(outdir,
-                    "{}_{}_sim{}_K{}{}_{}".format(virus_name, 
-                        evalType, iteration, tag_kf, klen, tag_fg))
+            prefix_out = os.path.join(outdir, 
+                    "{}_{}_{}_K{}{}_{}".format(virus_name,
+                        evalType, sim_name, tag_kf, klen, tag_fg))
 
             ## Generate training and testing data
             ####################################
@@ -275,27 +319,25 @@ if __name__ == "__main__":
                     k=klen,
                     full_kmers=fullKmers,
                     low_var_threshold=lowVarThreshold,
-                    fragment_size=fragmentSize,
-                    fragment_cov=coverage,
-                    fragment_count=fragmentCount,
                     n_splits=cv_folds,
                     test_size=testSize,
                     load_data=loadData,
                     save_data=saveData,
                     random_state=randomState,
-                    verbose=verbose)
+                    verbose=verbose,
+                    **args_fg)
 
             cv_data = tt_data["data"]
 
             if verbose:
                 print("X_train descriptive stats:\n{}".format(
                     get_stats(cv_data["X_train"])))
-
+            
             ## Train and compute performance of classifiers
             ###############################################
             mlr_scores = parallel(delayed(perform_mlr_cv)(
-                clone(mlr), clf_name, clf_penalty, _lambda, 
-                cv_data, prefix_out, metric=eval_metric, 
+                clone(mlr), clf_name, clf_penalty, _lambda,
+                cv_data, prefix_out, metric=eval_metric,
                 average_metric=avrg_metric, n_jobs=n_cvJobs,
                 load_model=loadModels, save_model=saveModels,
                 load_result=loadResults, save_result=saveResults,
@@ -303,24 +345,24 @@ if __name__ == "__main__":
                 for clf_name, clf_penalty in zip(clf_names,
                     clf_penalties))
 
-            # Add the scores of current klen to clf_scores
+            # Add the scores of current evo value to clf_scores
             for i, clf_name in enumerate(clf_names):
-                clf_scores[clf_name][str(coverage)] = mlr_scores[i]
+                clf_scores[clf_name][str(evo_value)] = mlr_scores[i]
 
         # Rearrange clf_scores into dict of mean and std dataframes
         scores_dfs = make_clf_score_dataframes(clf_scores,
-                coverages_str, score_names, _max_iter)
-
+                evo_values_str, score_names, _max_iter)
+ 
         sim_scores.append(scores_dfs)
-
 
         ## Save and Plot iteration results
         ##################################
         outFileSim = os.path.join(outdir,
-                "{}_{}_sim{}_K{}{}_{}_{}{}_A{}_COVERAGES_{}_{}".format(
-                    virus_name, evalType, iteration, tag_kf, 
-                    klen, tag_cov, mlr_name, str_lr, str_lambda, 
-                    eval_metric, avrg_metric))
+                "{}_{}_Sim{}_EV{}to{}_K{}{}_{}{}{}_A{}_{}_{}_{}".format(
+                    virus_name, evalType, iteration, evo_values[0],
+                    evo_values[-1], tag_kf, klen, tag_fg, mlr_name,
+                    str_lr, str_lambda, evo_to_assess, eval_metric,
+                    avrg_metric))
 
         if saveResults:
             write_log(scores_dfs, config, outFileSim+".log")
@@ -328,8 +370,8 @@ if __name__ == "__main__":
                 dump(scores_dfs, fh)
 
         if plotResults:
-            plot_cv_figure(scores_dfs, score_names, coverages_str, 
-                    "Coverage", outFileSim)
+            plot_cv_figure(scores_dfs, score_names, evo_values_str,
+                    evo_param_names[evo_to_assess], outFileSim)
 
     # Compute the mean of all scores per classifier
     # and by mean and std
@@ -338,10 +380,11 @@ if __name__ == "__main__":
     ## Save and Plot final results
     ##############################
     outFile = os.path.join(outdir,
-            "{}_{}_sim_K{}{}_{}_{}{}_A{}_COVERAGES_{}_{}".format(
-                virus_name, evalType, tag_kf, klen, tag_cov,
-                mlr_name, str_lr, str_lambda, eval_metric,
-                avrg_metric))
+                "{}_{}_Sim_EV{}to{}_K{}{}_{}{}{}_A{}_{}_{}_{}".format(
+                    virus_name, evalType, evo_values[0],
+                    evo_values[-1], tag_kf, klen, tag_fg, mlr_name,
+                    str_lr, str_lambda, evo_to_assess, eval_metric,
+                    avrg_metric))
 
     if saveResults:
         write_log(sim_scores_dfs, config, outFile+".log")
@@ -349,8 +392,8 @@ if __name__ == "__main__":
             dump(sim_scores_dfs, fh)
 
     if plotResults:
-        plot_cv_figure(sim_scores_dfs, score_names, coverages_str, 
-                "Coverage", outFile)
+        plot_cv_figure(sim_scores_dfs, score_names, evo_values_str,
+                evo_param_names[evo_to_assess], outFile)
 
     if verbose:
         print("\nFin normale du programme")

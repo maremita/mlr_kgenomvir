@@ -1,6 +1,6 @@
 #################################
 ##                             ##
-##  2020 (C) Amine M. Remita   ##
+##  2021 (C) Amine M. Remita   ##
 ##                             ##
 ## Laboratoire Bioinformatique ##
 ## Pr. Abdoulaye Diallo Group  ##

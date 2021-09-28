@@ -29,6 +29,8 @@ setup(
         'eval_scripts/mlr_eval_sim_coverage.py',
         'eval_scripts/mlr_eval_sim_klen.py',
         'eval_scripts/mlr_eval_sim_lambda.py',
-        'eval_scripts/mlr_eval_sim_learning_rate.py'],
+        'eval_scripts/mlr_eval_sim_learning_rate.py',
+        'eval_scripts/mlr_eval_sim_nbclasses.py',
+        'eval_scripts/mlr_eval_sim_evoparams.py'],
     install_requires=INSTALL_REQUIRES
 )

@@ -6,6 +6,7 @@ from mlr_kgenomvir.models.model_evaluation import compile_score_names
 from mlr_kgenomvir.models.model_evaluation import make_clf_score_dataframes
 from mlr_kgenomvir.models.model_evaluation import plot_cv_figure
 from mlr_kgenomvir.utils import str_to_list
+from mlr_kgenomvir.utils import get_stats
 from mlr_kgenomvir.utils import write_log
 
 import sys
@@ -63,7 +64,8 @@ if __name__ == "__main__":
     # seq_rep
     klen = config.getint("seq_rep", "k")
     fullKmers = config.getboolean("seq_rep", "full_kmers") 
-    lowVarThreshold = config.get("seq_rep", "low_var_threshold", fallback=None)
+    lowVarThreshold = config.get("seq_rep", "low_var_threshold",
+            fallback=None)
 
     # evaluation
     evalType = config.get("evaluation", "eval_type") # CC, CF or FF
@@ -85,30 +87,47 @@ if __name__ == "__main__":
     _penalties = config.get("classifier", "penalty")
 
     if _module == "pytorch_mlr":
-        _n_iter_no_change = config.getint("classifier", "n_iter_no_change")
+        _n_iter_no_change = config.getint("classifier",
+                "n_iter_no_change")
         _device = config.get("classifier", "device")
 
     # settings 
     n_mainJobs = config.getint("settings", "n_main_jobs")
     n_cvJobs = config.getint("settings", "n_cv_jobs")
-    verbose = config.getint("settings", "verbose")
-    saveData = config.getboolean("settings", "save_data")
-    saveModels = config.getboolean("settings", "save_models")
-    saveResults = config.getboolean("settings", "save_results")
-    plotResults = config.getboolean("settings", "plot_results")
-    randomState = config.getint("settings", "random_state")
+    verbose = config.getint("settings", "verbose",
+            fallback=0)
+    loadData = config.getboolean("settings", "load_data",
+            fallback=False)
+    saveData = config.getboolean("settings", "save_data",
+            fallback=True)
+    loadModels = config.getboolean("settings", "load_models",
+            fallback=False)
+    saveModels = config.getboolean("settings", "save_models",
+            fallback=True)
+    loadResults = config.getboolean("settings", "load_results",
+            fallback=False)
+    saveResults = config.getboolean("settings", "save_results",
+            fallback=True)
+    plotResults = config.getboolean("settings", "plot_results",
+            fallback=True)
+    randomState = config.getint("settings", "random_state",
+            fallback=42)
 
     if evalType in ["CC", "CF", "FF"]:
         if evalType in ["CF", "FF"]:
             try:
-                fragmentSize = config.getint("seq_rep", "fragment_size")
-                fragmentCount = config.getint("seq_rep", "fragment_count")
-                fragmentCov = config.getfloat("seq_rep", "fragment_cov") 
+                fragmentSize = config.getint("seq_rep",
+                        "fragment_size")
+                fragmentCount = config.getint("seq_rep",
+                        "fragment_count")
+                fragmentCov = config.getfloat("seq_rep",
+                        "fragment_cov") 
 
             except configparser.NoOptionError:
                 raise configparser.NoOptionError()
     else:
-        raise ValueError("evalType argument have to be one of CC, CF or"+
+        raise ValueError(
+                "evalType argument have to be one of CC, CF or"+
                 " FF values")
 
     # Check lowVarThreshold
@@ -179,6 +198,7 @@ if __name__ == "__main__":
             low_var_threshold=lowVarThreshold,
             n_splits=cv_folds,
             test_size=testSize,
+            load_data=loadData,
             save_data=saveData,
             random_state=randomState,
             verbose=verbose,
@@ -186,9 +206,12 @@ if __name__ == "__main__":
 
     cv_data = tt_data["data"]
 
+    if verbose:
+        print("X_train descriptive stats:\n{}".format(
+            get_stats(cv_data["X_train"])))
+
     ## Evaluate MLR models
     ######################
-
     # "l1", "l2", "elasticnet", "none"
     clf_penalties = str_to_list(_penalties)
     clf_names = [mlr_name+"_"+pen.upper() for pen in clf_penalties]
@@ -196,16 +219,21 @@ if __name__ == "__main__":
     clf_scores = defaultdict(dict)
     score_names = compile_score_names(eval_metric, avrg_metric)
 
-    parallel = Parallel(n_jobs=n_mainJobs, prefer="processes", verbose=verbose)
+    parallel = Parallel(n_jobs=n_mainJobs, prefer="processes",
+            verbose=verbose)
 
-    for i, (clf_name, clf_penalty) in enumerate(zip(clf_names,clf_penalties)):
+    for i, (clf_name, clf_penalty) in enumerate(
+            zip(clf_names,clf_penalties)):
         if verbose:
-            print("\n{}. Evaluating {}".format(i, clf_name), flush=True)
+            print("\n{}. Evaluating {}".format(i, clf_name),
+                    flush=True)
  
-        mlr_scores = parallel(delayed(perform_mlr_cv)(clone(mlr), clf_name,
-            clf_penalty, _lambda, cv_data, prefix_out, learning_rate=_lr,
-            metric=eval_metric, average_metric=avrg_metric, n_jobs=n_cvJobs,
-            save_model=saveModels, save_result=saveResults, 
+        mlr_scores = parallel(delayed(perform_mlr_cv)(
+            clone(mlr), clf_name, clf_penalty, _lambda, cv_data,
+            prefix_out, learning_rate=_lr, metric=eval_metric,
+            average_metric=avrg_metric, n_jobs=n_cvJobs,
+            load_model=loadModels, save_model=saveModels,
+            load_result=loadResults, save_result=saveResults,
             verbose=verbose, random_state=randomState)
             for _lr in lrs)
 
@@ -221,9 +249,10 @@ if __name__ == "__main__":
             range(0, 10)) else str(_lambda)
 
     outFile = os.path.join(outdir,
-            "{}_{}_K{}{}_{}{}_LR{}to{}_A{}_LRS_{}_{}".format(virus_name,
-                evalType, tag_kf, klen, tag_fg, mlr_name, lrs_str[0],
-                lrs_str[-1], str_lambda, eval_metric, avrg_metric))
+            "{}_{}_K{}{}_{}{}_LR{}to{}_A{}_LRS_{}_{}".format(
+                virus_name, evalType, tag_kf, klen, tag_fg, mlr_name,
+                lrs_str[0], lrs_str[-1], str_lambda, 
+                eval_metric, avrg_metric))
 
     if saveResults:
         write_log(scores_dfs, config, outFile+".log")
@@ -231,8 +260,8 @@ if __name__ == "__main__":
             dump(scores_dfs, fh)
 
     if plotResults:
-        plot_cv_figure(scores_dfs, score_names, lrs_str, "Learning rate", 
-                outFile)
+        plot_cv_figure(scores_dfs, score_names, lrs_str,
+                "Learning rate", outFile)
 
     if verbose:
         print("\nFin normale du programme")

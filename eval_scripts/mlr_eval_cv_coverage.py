@@ -6,6 +6,7 @@ from mlr_kgenomvir.models.model_evaluation import compile_score_names
 from mlr_kgenomvir.models.model_evaluation import make_clf_score_dataframes
 from mlr_kgenomvir.models.model_evaluation import plot_cv_figure
 from mlr_kgenomvir.utils import str_to_list
+from mlr_kgenomvir.utils import get_stats
 from mlr_kgenomvir.utils import write_log
 
 import sys
@@ -63,7 +64,8 @@ if __name__ == "__main__":
     # seq_rep
     klen = config.getint("seq_rep", "k")
     fullKmers = config.getboolean("seq_rep", "full_kmers")
-    lowVarThreshold = config.get("seq_rep", "low_var_threshold", fallback=None)
+    lowVarThreshold = config.get("seq_rep", "low_var_threshold",
+            fallback=None)
     fragmentSize = config.getint("seq_rep", "fragment_size")
     fragmentCount = config.getint("seq_rep", "fragment_count")
     # ........ main evaluation parameters ..............
@@ -87,19 +89,33 @@ if __name__ == "__main__":
     _penalties = config.get("classifier", "penalty")
 
     if _module == "pytorch_mlr":
-        _learning_rate = config.getfloat("classifier", "learning_rate")
-        _n_iter_no_change = config.getint("classifier", "n_iter_no_change")
+        _learning_rate = config.getfloat("classifier", 
+                "learning_rate")
+        _n_iter_no_change = config.getint("classifier",
+                "n_iter_no_change")
         _device = config.get("classifier", "device")
 
     # settings 
     n_mainJobs = config.getint("settings", "n_main_jobs")
     n_cvJobs = config.getint("settings", "n_cv_jobs")
-    verbose = config.getint("settings", "verbose")
-    saveData = config.getboolean("settings", "save_data")
-    saveModels = config.getboolean("settings", "save_models")
-    saveResults = config.getboolean("settings", "save_results")
-    plotResults = config.getboolean("settings", "plot_results")
-    randomState = config.getint("settings", "random_state")
+    verbose = config.getint("settings", "verbose",
+            fallback=0)
+    loadData = config.getboolean("settings", "load_data",
+            fallback=False)
+    saveData = config.getboolean("settings", "save_data",
+            fallback=True)
+    loadModels = config.getboolean("settings", "load_models",
+            fallback=False)
+    saveModels = config.getboolean("settings", "save_models",
+            fallback=True)
+    loadResults = config.getboolean("settings", "load_results",
+            fallback=False)
+    saveResults = config.getboolean("settings", "save_results",
+            fallback=True)
+    plotResults = config.getboolean("settings", "plot_results",
+            fallback=True)
+    randomState = config.getint("settings", "random_state",
+            fallback=42)
 
     if evalType not in ["CF", "FF"]:
         raise ValueError(
@@ -133,20 +149,21 @@ if __name__ == "__main__":
     #####################
 
     if _module == "pytorch_mlr":
-        mlr = MLR(tol=_tol, learning_rate=_learning_rate, l1_ratio=None, 
-                solver=_solver, max_iter=_max_iter, validation=False, 
-                n_iter_no_change=_n_iter_no_change, device=_device, 
-                random_state=randomState, verbose=verbose)
+        mlr = MLR(tol=_tol, learning_rate=_learning_rate,
+                l1_ratio=None, solver=_solver, max_iter=_max_iter,
+                validation=False, n_iter_no_change=_n_iter_no_change,
+                device=_device, random_state=randomState,
+                verbose=verbose)
         mlr_name = "PTMLR"
 
     else:
-        mlr = LogisticRegression(multi_class="multinomial", tol=_tol, 
-                solver=_solver, max_iter=_max_iter, verbose=0, l1_ratio=None)
+        mlr = LogisticRegression(multi_class="multinomial", tol=_tol,
+                solver=_solver, max_iter=_max_iter, verbose=0, 
+                l1_ratio=None)
         mlr_name = "SKMLR"
 
     ## Evaluate MLR models
     ######################
-
     # "l1", "l2", "elasticnet", "none"
     clf_penalties = str_to_list(_penalties)
     clf_names = [mlr_name+"_"+pen.upper() for pen in clf_penalties]
@@ -154,12 +171,14 @@ if __name__ == "__main__":
     clf_scores = defaultdict(dict) 
     score_names = compile_score_names(eval_metric, avrg_metric)
 
-    parallel = Parallel(n_jobs=n_mainJobs, prefer="processes", verbose=verbose)
+    parallel = Parallel(n_jobs=n_mainJobs, prefer="processes",
+            verbose=verbose)
 
     # If we have enough memory we can parallelize this loop
     for coverage in coverages:
         if verbose:
-            print("\nEvaluating coverage {}".format(coverage), flush=True)
+            print("\nEvaluating coverage {}".format(coverage),
+                    flush=True)
 
         # Construct prefix for output files
         ###################################
@@ -184,18 +203,26 @@ if __name__ == "__main__":
                 fragment_count=fragmentCount,
                 n_splits=cv_folds,
                 test_size=testSize,
+                load_data=loadData,
                 save_data=saveData,
                 random_state=randomState,
                 verbose=verbose)
 
         cv_data = tt_data["data"]
 
-        mlr_scores = parallel(delayed(perform_mlr_cv)(clone(mlr), clf_name,
-            clf_penalty, _lambda, cv_data, prefix_out, metric=eval_metric,
+        if verbose:
+            print("X_train descriptive stats:\n{}".format(
+                get_stats(cv_data["X_train"])))
+
+        mlr_scores = parallel(delayed(perform_mlr_cv)(
+            clone(mlr), clf_name, clf_penalty, _lambda, 
+            cv_data, prefix_out, metric=eval_metric,
             average_metric=avrg_metric, n_jobs=n_cvJobs,
-            save_model=saveModels, save_result=saveResults, 
+            load_model=loadModels, save_model=saveModels,
+            load_result=loadResults, save_result=saveResults,
             verbose=verbose, random_state=randomState)
-            for clf_name, clf_penalty in zip(clf_names, clf_penalties))
+            for clf_name, clf_penalty in zip(clf_names,
+                clf_penalties))
         #print(mlr_scores)
 
         for i, clf_name in enumerate(clf_names):
@@ -203,8 +230,8 @@ if __name__ == "__main__":
 
     #print(clf_scores)
  
-    scores_dfs = make_clf_score_dataframes(clf_scores, coverages_str, 
-            score_names, _max_iter)
+    scores_dfs = make_clf_score_dataframes(clf_scores,
+            coverages_str, score_names, _max_iter)
 
     #pprint(scores_dfs)
 
@@ -223,9 +250,10 @@ if __name__ == "__main__":
             coverages_str[0], coverages_str[-1], str(fragmentCount))
 
     outFile = os.path.join(outdir,
-            "{}_{}_K{}{}_{}_{}{}_A{}_COVERAGES_{}_{}".format(virus_name,
-                evalType, tag_kf, klen, tag_cov, mlr_name, str_lr,
-                str_lambda, eval_metric, avrg_metric))
+            "{}_{}_K{}{}_{}_{}{}_A{}_COVERAGES_{}_{}".format(
+                virus_name, evalType, tag_kf, klen, tag_cov,
+                mlr_name, str_lr, str_lambda,
+                eval_metric, avrg_metric))
 
     if saveResults:
         write_log(scores_dfs, config, outFile+".log")
@@ -233,8 +261,8 @@ if __name__ == "__main__":
             dump(scores_dfs, fh)
 
     if plotResults:
-        plot_cv_figure(scores_dfs, score_names, coverages_str, "Coverage", 
-                outFile)
+        plot_cv_figure(scores_dfs, score_names, coverages_str, 
+                "Coverage", outFile)
 
     if verbose:
         print("\nFin normale du programme")

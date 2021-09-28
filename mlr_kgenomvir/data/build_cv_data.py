@@ -125,7 +125,8 @@ def build_load_save_cv_data(
         fragment_count=1000,
         n_splits=3,
         test_size=0.3,
-        save_data=False,
+        load_data=False,
+        save_data=True,
         random_state=42,
         verbose=1):
 
@@ -134,14 +135,14 @@ def build_load_save_cv_data(
 
     Xy_cvFile = prefix+"Xy_cv{}_data.npz".format(n_splits)
 
-    if os.path.isfile(Xy_cvFile) and save_data:
+    if os.path.isfile(Xy_cvFile) and load_data:
         if verbose: 
             print("\nLoading data of {} with k {} from file".format(
                 prefix, k), flush=True)
 
         data = load_Xy_cv_data(Xy_cvFile)
 
-        if verbose: print("Done.", flush=True)
+        if verbose: print("Done.\n", flush=True)
 
     else:
         if verbose:
@@ -167,6 +168,6 @@ def build_load_save_cv_data(
         if save_data:
             save_Xy_cv_data(data, Xy_cvFile)
 
-        if verbose: print("Done.", flush=True)
+        if verbose: print("Done.\n", flush=True)
 
     return data
