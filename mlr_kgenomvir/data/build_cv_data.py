@@ -1,7 +1,7 @@
 from .seq_collections import SeqCollection
 from .kmer_collections import GivenKmersCollection
 from .kmer_collections import build_kmers_Xy_data, build_kmers
-from ..utils import load_Xy_cv_data, save_Xy_cv_data   
+from ..utils import load_Xy_cv_data, save_Xy_cv_data
 
 import os.path
 
@@ -27,7 +27,7 @@ def build_cv_data(
         random_state=42):
 
     parents = []
-    cv_indices = [] 
+    cv_indices = []
     ret_data = dict()
 
     stride = int(fragment_size/fragment_cov)
@@ -44,8 +44,10 @@ def build_cv_data(
             if fragment_count > 1:
                 seq_data = seq_data.stratified_sample(fragment_count, seed=random_state)
 
+            print("seq_data {}".format(seq_data))
+
         X_train, y_train = build_kmers_Xy_data(seq_data, k,
-                full_kmers=full_kmers, low_var_threshold=low_var_threshold, 
+                full_kmers=full_kmers, low_var_threshold=low_var_threshold,
                 dtype=np.int32)
         X_test = "X_train"  # a flag only
         y_test = "y_train"  # a flag only
@@ -65,10 +67,10 @@ def build_cv_data(
 
         if fragment_count > 1:
             seq_test = seq_test.stratified_sample(fragment_count, seed=random_state)
- 
+
         parents = seq_test.get_parents_rank_list()
 
-        X_test = GivenKmersCollection(seq_test, X_train_kmer_list, 
+        X_test = GivenKmersCollection(seq_test, X_train_kmer_list,
                 dtype=np.int32).data
         y_test = np.asarray(seq_test.labels)
 
@@ -85,7 +87,7 @@ def build_cv_data(
 
     ## Package data in a dictionary
     # data
-    ret_data["data"] = dict()       
+    ret_data["data"] = dict()
     # I could use defaultdict, bu it's easier for serialization
     ret_data["data"]["X_train"] = X_train
     ret_data["data"]["y_train"] = y_train
@@ -94,7 +96,7 @@ def build_cv_data(
     ret_data["data"]["parents"] = parents
     ret_data["data"]["cv_indices"] = cv_indices
 
-    # Settings 
+    # Settings
     # (maybe another way to fetch arguments and add them to the dict directly)
     ret_data["settings"] = dict()
     ret_data["settings"]["eval_type"] = eval_type
@@ -116,9 +118,9 @@ def build_load_save_cv_data(
         seq_file,
         cls_file,
         prefix,
-        eval_type="CC", 
+        eval_type="CC",
         k=4,
-        full_kmers=False, 
+        full_kmers=False,
         low_var_threshold=None,
         fragment_size=1000,
         fragment_cov=2,
@@ -136,7 +138,7 @@ def build_load_save_cv_data(
     Xy_cvFile = prefix+"Xy_cv{}_data.npz".format(n_splits)
 
     if os.path.isfile(Xy_cvFile) and load_data:
-        if verbose: 
+        if verbose:
             print("\nLoading data of {} with k {} from file".format(
                 prefix, k), flush=True)
 
