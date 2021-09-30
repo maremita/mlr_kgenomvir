@@ -43,17 +43,17 @@ def build_cv_data(
 
             if fragment_count > 1:
                 seq_data = seq_data.stratified_sample(fragment_count, seed=random_state)
-
-            print("seq_data {}".format(seq_data))
-
+        
         X_train, y_train = build_kmers_Xy_data(seq_data, k,
                 full_kmers=full_kmers, low_var_threshold=low_var_threshold,
                 dtype=np.int32)
         X_test = "X_train"  # a flag only
         y_test = "y_train"  # a flag only
 
-    elif eval_type == "CF":
+        print("X_train : {}".format(X_train))
+        print("y_train : {}".format(y_train))
 
+    elif eval_type == "CF":
         # Build Train data from complete sequence
         X_train_kmer = build_kmers(seq_data, k, full_kmers=full_kmers,
                 low_var_threshold=low_var_threshold, dtype=np.int32)

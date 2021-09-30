@@ -97,7 +97,7 @@ class FullKmersCollection(KmersCollection):
         self.alphabet = alphabet
         #
         self.ids = []
-        self.v_size = np.power(len(self.alphabet), self.k)
+        self.v_size = np.power(len(self.alphabet), int(self.k))
         self.data = np.zeros((len(sequences), self.v_size), dtype=self.dtype)
         self.kmers_list = ["".join(t) for t in product(alphabet, repeat=k)]
         #
@@ -107,11 +107,11 @@ class FullKmersCollection(KmersCollection):
     def _compute_kmers_of_sequence(self, sequence, ind):
         search = re.compile("^["+self.alphabet+"]+$").search
 
-        for i in range(len(sequence) - self.k + 1):
-            kmer = sequence[i:i + self.k]
+        for i in range(len(sequence) - int(self.k) + 1):
+            kmer = sequence[i:i + int(self.k)]
 
             if self.alphabet and bool(search(kmer)) or not self.alphabet:
-                ind_kmer = get_index_from_kmer(kmer, self.k)
+                ind_kmer = get_index_from_kmer(kmer, int(self.k))
                 self.data[ind][ind_kmer] += 1
 
         return self
@@ -139,8 +139,8 @@ class SeenKmersCollection(KmersCollection):
     def _compute_kmers_of_sequence(self, sequence, ind):
         search = re.compile("^["+self.alphabet+"]+$").search
 
-        for i in range(len(sequence) - self.k + 1):
-            kmer = sequence[i:i + self.k]
+        for i in range(len(sequence) - int(self.k) + 1):
+            kmer = sequence[i:i + int(self.k)]
 
             if self.alphabet and bool(search(kmer)) or not self.alphabet:
                 self.dict_data[kmer][ind] += 1
@@ -170,6 +170,7 @@ class VarKmersCollection(SeenKmersCollection):
         selection = VarianceThreshold(threshold=low_var_threshold)
         self.data = selection.fit_transform(self.data)
 
+
         # update kmer list
         self.v_size = self.data.shape[1]
         _support = selection.get_support()
@@ -196,8 +197,8 @@ class GivenKmersCollection(KmersCollection):
         self._convert_to_sparse_matrix()
 
     def _compute_kmers_of_sequence(self, sequence, ind):
-        for i in range(len(sequence) - self.k + 1):
-            kmer = sequence[i:i + self.k]
+        for i in range(len(sequence) - int(self.k) + 1):
+            kmer = sequence[i:i + int(self.k)]
 
             if kmer in self.kmers_indices:
                 ind_kmer = self.kmers_indices[kmer]
