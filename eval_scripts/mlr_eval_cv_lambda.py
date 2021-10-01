@@ -75,7 +75,8 @@ if __name__ == "__main__":
     avrg_metric = config.get("evaluation", "avrg_metric")
 
     # classifier
-    _module = config.get("classifier", "module") # sklearn or pytorch_mlr
+    # sklearn or pytorch_mlr
+    _module = config.get("classifier", "module")
     _tol = config.getfloat("classifier", "tol")
     # ........ main evaluation parameters ..............
     _lambdas = config.get("classifier", "lambda")
@@ -251,15 +252,16 @@ if __name__ == "__main__":
     ########################
     str_lr = ""
     if _module == "pytorch_mlr":
-        str_lr = format(_learning_rate, '.0e') if _learning_rate not in list(
-                range(0, 10)) else str(_learning_rate)
+        str_lr = format(_learning_rate, '.0e')\
+                if _learning_rate not in list(range(0, 10))\
+                else str(_learning_rate)
         str_lr = "_LR"+str_lr
 
     outFile = os.path.join(outdir,
             "{}_{}_K{}{}_{}{}{}_A{}to{}_LAMBDAS_{}_{}".format(
                 virus_name, evalType, tag_kf, klen, tag_fg,
                 mlr_name, str_lr, lambdas_str[0], lambdas_str[-1],
-                eval_metric, avrg_metric))
+                avrg_metric, eval_metric))
 
     if saveResults:
         write_log(scores_dfs, config, outFile+".log")
@@ -271,4 +273,4 @@ if __name__ == "__main__":
                 "Lambda", outFile)
 
     if verbose:
-        print("\nFin normale du programme")
+        print("\nFin normale du programme {}".format(sys.argv[0]))

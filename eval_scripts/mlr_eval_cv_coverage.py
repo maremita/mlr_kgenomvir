@@ -31,9 +31,9 @@ __author__ = "amine"
 
 
 """
-The script evaluates the effect of the coverage of fragments on genome 
-positions on the performance of different regularized MLR models for virus
-genome classification
+The script evaluates the effect of the coverage of fragments
+on genome positions on the performance of different regularized
+MLR models for virus genome classification
 """
 
 
@@ -80,7 +80,8 @@ if __name__ == "__main__":
     avrg_metric = config.get("evaluation", "avrg_metric")
 
     # classifier
-    _module = config.get("classifier", "module") # sklearn or pytorch_mlr
+    # sklearn or pytorch_mlr
+    _module = config.get("classifier", "module")
     _tol = config.getfloat("classifier", "tol")
     _lambda = config.getfloat("classifier", "lambda") 
     _l1_ratio = config.getfloat("classifier", "l1_ratio") 
@@ -174,7 +175,6 @@ if __name__ == "__main__":
     parallel = Parallel(n_jobs=n_mainJobs, prefer="processes",
             verbose=verbose)
 
-    # If we have enough memory we can parallelize this loop
     for coverage in coverages:
         if verbose:
             print("\nEvaluating coverage {}".format(coverage),
@@ -214,6 +214,9 @@ if __name__ == "__main__":
             print("X_train descriptive stats:\n{}".format(
                 get_stats(cv_data["X_train"])))
 
+        ## Train and compute performance of classifiers
+        ###############################################
+        # mlr_scores is a list of dictionaries of scores
         mlr_scores = parallel(delayed(perform_mlr_cv)(
             clone(mlr), clf_name, clf_penalty, _lambda, 
             cv_data, prefix_out, metric=eval_metric,
@@ -223,24 +226,22 @@ if __name__ == "__main__":
             verbose=verbose, random_state=randomState)
             for clf_name, clf_penalty in zip(clf_names,
                 clf_penalties))
-        #print(mlr_scores)
 
+        # Add the scores of current coverage to clf_scores
         for i, clf_name in enumerate(clf_names):
             clf_scores[clf_name][str(coverage)] = mlr_scores[i]
-
-    #print(clf_scores)
  
+    # Rearrange clf_scores into dict of mean and std dataframes
     scores_dfs = make_clf_score_dataframes(clf_scores,
             coverages_str, score_names, _max_iter)
-
-    #pprint(scores_dfs)
 
     ## Save and Plot results
     ########################
     str_lr = ""
     if _module == "pytorch_mlr":
-        str_lr = format(_learning_rate, '.0e') if _learning_rate not in list(
-                range(0, 10)) else str(_learning_rate)
+        str_lr = format(_learning_rate, '.0e')\
+                if _learning_rate not in list(range(0, 10))\
+                else str(_learning_rate)
         str_lr = "_LR"+str_lr
 
     str_lambda = format(_lambda, '.0e') if _lambda not in list(
@@ -253,7 +254,7 @@ if __name__ == "__main__":
             "{}_{}_K{}{}_{}_{}{}_A{}_COVERAGES_{}_{}".format(
                 virus_name, evalType, tag_kf, klen, tag_cov,
                 mlr_name, str_lr, str_lambda,
-                eval_metric, avrg_metric))
+                avrg_metric, eval_metric))
 
     if saveResults:
         write_log(scores_dfs, config, outFile+".log")
@@ -265,4 +266,4 @@ if __name__ == "__main__":
                 "Coverage", outFile)
 
     if verbose:
-        print("\nFin normale du programme")
+        print("\nFin normale du programme {}".format(sys.argv[0]))

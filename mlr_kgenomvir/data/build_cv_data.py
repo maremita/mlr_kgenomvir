@@ -33,8 +33,8 @@ def build_cv_data(
     stride = int(fragment_size/fragment_cov)
 
     ## Build data
-    # Set dtype to int32 to comply with pytorch. It is not compatible with
-    # uint64
+    # Set dtype to int32 to comply with pytorch.
+    # It is not compatible with uint64
     if eval_type in ["CC", "FF"]:
 
         if eval_type == "FF":
@@ -49,9 +49,6 @@ def build_cv_data(
                 dtype=np.int32)
         X_test = "X_train"  # a flag only
         y_test = "y_train"  # a flag only
-
-        print("X_train : {}".format(X_train))
-        print("y_train : {}".format(y_train))
 
     elif eval_type == "CF":
         # Build Train data from complete sequence

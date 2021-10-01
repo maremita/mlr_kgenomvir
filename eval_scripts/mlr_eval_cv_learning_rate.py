@@ -75,7 +75,8 @@ if __name__ == "__main__":
     avrg_metric = config.get("evaluation", "avrg_metric")
 
     # classifier
-    _module = config.get("classifier", "module") # sklearn or pytorch_mlr
+    # should be pytorch_mlr
+    _module = config.get("classifier", "module")
     _tol = config.getfloat("classifier", "tol")
     _lambda = config.getfloat("classifier", "lambda") 
     # ........ main evaluation parameters ..............
@@ -252,7 +253,7 @@ if __name__ == "__main__":
             "{}_{}_K{}{}_{}{}_LR{}to{}_A{}_LRS_{}_{}".format(
                 virus_name, evalType, tag_kf, klen, tag_fg, mlr_name,
                 lrs_str[0], lrs_str[-1], str_lambda, 
-                eval_metric, avrg_metric))
+                avrg_metric, eval_metric))
 
     if saveResults:
         write_log(scores_dfs, config, outFile+".log")
@@ -264,4 +265,4 @@ if __name__ == "__main__":
                 "Learning rate", outFile)
 
     if verbose:
-        print("\nFin normale du programme")
+        print("\nFin normale du programme {}".format(sys.argv[0]))

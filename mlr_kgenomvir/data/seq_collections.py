@@ -6,6 +6,7 @@ from collections import UserList, defaultdict
 
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
+import numpy as np
 
 __all__ = ['SeqCollection']
 
@@ -65,6 +66,13 @@ class SeqCollection(UserList):
             self.data = list(copy.deepcopy(arg))
             self.__get_labels()
 
+        # Sequence length stats
+        seq_lenghts = list(map(len, self.data))
+        self.max_len = max(seq_lenghts)
+        self.min_len = min(seq_lenghts)
+        self.mean_len = np.mean(seq_lenghts)
+        self.std_len = np.std(seq_lenghts)
+
     def __set_labels(self):
         for ind, seqRecord in enumerate(self.data):
             if seqRecord.id in self.label_map:
@@ -91,7 +99,8 @@ class SeqCollection(UserList):
         # TODO
         # Give more details about this exception
         if not isinstance(ind, (int, list, slice)):
-            raise TypeError("The argument must be int, list or slice")
+            raise TypeError(
+                    "The argument must be int, list or slice")
 
         # shallow copy
         #if the argument is an integer
@@ -140,6 +149,12 @@ class SeqCollection(UserList):
             print("extract_fragments() stride parameter should be sup to 1")
             stride = 1
 
+        frgt_size = size
+        if frgt_size > self.min_len: 
+            frgt_size = self.min_len
+            print("\nWarning: Fragment size is set to minimum length {}".format(frgt_size),
+                    flush=True)
+
         new_data = []
 
         for ind, seqRec in enumerate(self.data):
@@ -147,8 +162,8 @@ class SeqCollection(UserList):
 
             i = 0
             j = 0
-            while i < (len(sequence) - size + 1):
-                fragment = sequence[i:i + size]
+            while i < (len(sequence) - frgt_size + 1):
+                fragment = sequence[i:i + frgt_size]
 
                 frgRec = SeqRecord(fragment, id=seqRec.id + "_" + str(j))
                 frgRec.rankParent = ind

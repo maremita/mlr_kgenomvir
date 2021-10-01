@@ -323,10 +323,11 @@ if __name__ == "__main__":
         ## Save and Plot iteration results
         ##################################
         outFileSim = os.path.join(outdir,
-                "{}_{}_sim{}_K{}{}_{}{}_LR{}to{}_A{}_LRS_{}_{}".format(
-                    virus_name, evalType, iteration, tag_kf, 
-                    klen, tag_fg, mlr_name, lrs_str[0], lrs_str[-1],
-                    str_lambda, eval_metric, avrg_metric))
+                "{}_{}_sim{}_K{}{}_{}{}_LR{}to{}_A{}_LRS_{}_{}".\
+                        format(virus_name, evalType, iteration,
+                            tag_kf, klen, tag_fg, mlr_name,
+                            lrs_str[0], lrs_str[-1], str_lambda,
+                            avrg_metric, eval_metric))
 
         if saveResults:
             write_log(scores_dfs, config, outFileSim+".log")
@@ -347,7 +348,7 @@ if __name__ == "__main__":
             "{}_{}_sim_K{}{}_{}{}_LR{}to{}_A{}_LRS_{}_{}".format(
                 virus_name, evalType, tag_kf, klen, tag_fg,
                 mlr_name, lrs_str[0], lrs_str[-1], str_lambda,
-                eval_metric, avrg_metric))
+                avrg_metric, eval_metric))
 
     if saveResults:
         write_log(sim_scores_dfs, config, outFile+".log")
@@ -359,4 +360,4 @@ if __name__ == "__main__":
                 "Learning rate", outFile)
 
     if verbose:
-        print("\nFin normale du programme")
+        print("\nFin normale du programme {}".format(sys.argv[0]))

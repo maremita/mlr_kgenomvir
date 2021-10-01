@@ -199,8 +199,9 @@ if __name__ == "__main__":
 
     str_lr = ""
     if _module == "pytorch_mlr":
-        str_lr = format(_learning_rate, '.0e') if _learning_rate not in list(
-                range(0, 10)) else str(_learning_rate)
+        str_lr = format(_learning_rate, '.0e')\
+                if _learning_rate not in list(range(0, 10))\
+                else str(_learning_rate)
         str_lr = "_LR"+str_lr
 
     # OutDir folder
@@ -324,10 +325,11 @@ if __name__ == "__main__":
         ## Save and Plot iteration results
         ##################################
         outFileSim = os.path.join(outdir, 
-                "{}_{}_sim{}_K{}{}_{}{}{}_A{}to{}_LAMBDAS_{}_{}".format(
-                    virus_name, evalType, iteration, tag_kf, klen,
-                    tag_fg, mlr_name, str_lr, lambdas_str[0],
-                    lambdas_str[-1], eval_metric, avrg_metric))
+                "{}_{}_sim{}_K{}{}_{}{}{}_A{}to{}_LAMBDAS_{}_{}".\
+                        format(virus_name, evalType, iteration, 
+                            tag_kf, klen, tag_fg, mlr_name, str_lr,
+                            lambdas_str[0], lambdas_str[-1],
+                            avrg_metric, eval_metric))
 
         if saveResults:
             write_log(scores_dfs, config, outFileSim+".log")
@@ -348,7 +350,7 @@ if __name__ == "__main__":
             "{}_{}_sim_K{}{}_{}{}{}_A{}to{}_LAMBDAS_{}_{}".format(
                 virus_name, evalType, tag_kf, klen, tag_fg,
                 mlr_name, str_lr, lambdas_str[0], lambdas_str[-1],
-                eval_metric, avrg_metric))
+                avrg_metric, eval_metric))
 
     if saveResults:
         write_log(sim_scores_dfs, config, outFile+".log")
@@ -360,4 +362,4 @@ if __name__ == "__main__":
                 "Lambda", outFile)
 
     if verbose:
-        print("\nFin normale du programme")
+        print("\nFin normale du programme {}".format(sys.argv[0]))

@@ -27,12 +27,13 @@ from mlr_kgenomvir.models.pytorch_mlr import MLR
 from sklearn.linear_model import LogisticRegression
 
 
-__author__ = "amine"
+__author__ = ["nicolas", "amine"]
 
 
 """
-The script evaluates the performance of different regularized MLR models
-with function to kmer lengths for virus genome classification
+The script evaluates the performance of different 
+regularized MLR models with function to low variance 
+threshold of data for virus genome classification
 """
 
 
@@ -61,11 +62,11 @@ if __name__ == "__main__":
     outdir = config.get("io", "outdir")
 
     # seq_rep
-    # ........ main evaluation parameters ..............
-    k_lenghts = config.get("seq_rep", "k")
-    # ..................................................
+    klen = config.getint("seq_rep", "k")
     fullKmers = config.getboolean("seq_rep", "full_kmers")
-    lowVarThreshold = config.get("seq_rep", "low_var_threshold", fallback=None)
+    # ........ main evaluation parameters ..............
+    lowVarThreshold = config.get("seq_rep", "low_var_threshold")
+    # ..................................................
 
     # evaluation
     evalType = config.get("evaluation", "eval_type") # CC, CF or FF
@@ -75,7 +76,8 @@ if __name__ == "__main__":
     avrg_metric = config.get("evaluation", "avrg_metric")
 
     # classifier
-    _module = config.get("classifier", "module") # sklearn or pytorch_mlr
+    # sklearn or pytorch_mlr
+    _module = config.get("classifier", "module") 
     _tol = config.getfloat("classifier", "tol")
     _lambda = config.getfloat("classifier", "lambda")
     _l1_ratio = config.getfloat("classifier", "l1_ratio")
@@ -115,22 +117,24 @@ if __name__ == "__main__":
     if evalType in ["CC", "CF", "FF"]:
         if evalType in ["CF", "FF"]:
             try:
-                fragmentSize = config.getint("seq_rep", "fragment_size")
-                fragmentCount = config.getint("seq_rep", "fragment_count")
-                fragmentCov = config.getfloat("seq_rep", "fragment_cov")
+                fragmentSize = config.getint("seq_rep",
+                        "fragment_size")
+                fragmentCount = config.getint("seq_rep", 
+                        "fragment_count")
+                fragmentCov = config.getfloat("seq_rep", 
+                        "fragment_cov")
 
             except configparser.NoOptionError:
                 raise configparser.NoOptionError()
     else:
-        raise ValueError("evalType argument have to be one of CC, CF or"+
+        raise ValueError(
+                "evalType argument have to be one of CC, CF or"+
                 " FF values")
 
     ## Tags for prefix out
     ######################
     if fullKmers:
         tag_kf = "F"
-    elif lowVarThreshold:
-        tag_kf = "V"
     else:
         tag_kf = "S"
 
@@ -147,7 +151,8 @@ if __name__ == "__main__":
 
     # OutDir folder
     ###############
-    outdir = os.path.join(outdir,"{}/{}".format(virus_name, evalType))
+    outdir = os.path.join(outdir,"{}/{}".format(virus_name,
+        evalType))
     makedirs(outdir, mode=0o700, exist_ok=True)
 
     ## Thresholds to evaluate
@@ -157,7 +162,6 @@ if __name__ == "__main__":
 
     ## MLR initialization
     #####################
-
     if _module == "pytorch_mlr":
         mlr = MLR(tol=_tol, learning_rate=_learning_rate,
                 l1_ratio=None, solver=_solver, max_iter=_max_iter,
@@ -184,15 +188,16 @@ if __name__ == "__main__":
     parallel = Parallel(n_jobs=n_mainJobs, prefer="processes",
             verbose=verbose)
 
-    # If we have enough memory we can parallelize this loop
     for threshold in thresholds_list:
         if verbose:
-            print("\nEvaluating Threshold {}".format(threshold), flush=True)
+            print("\nEvaluating variance threshold {}".format(
+                threshold), flush=True)
 
         # Construct prefix for output files
         ###################################
-        prefix_out = os.path.join(outdir, "{}_{}_threshold{}{}_{}".format(
-            virus_name, evalType, tag_kf, threshold, tag_fg))
+        prefix_out = os.path.join(outdir,
+                "{}_{}_K{}{}_V{}_{}".format(virus_name,
+                    evalType, tag_kf, klen, threshold, tag_fg))
 
         ## Generate training and testing data
         ####################################
@@ -202,7 +207,7 @@ if __name__ == "__main__":
                     cls_file,
                     prefix_out,
                     eval_type=evalType,
-                    k=k_lenghts,
+                    k=klen,
                     full_kmers=fullKmers,
                     low_var_threshold=threshold,
                     n_splits=cv_folds,
@@ -212,16 +217,19 @@ if __name__ == "__main__":
                     random_state=randomState,
                     verbose=verbose,
                     **args_fg)
-            print(tt_data["data"])
+    
         except ValueError as e:
             print(e)
-        """
+  
         cv_data = tt_data["data"]
 
         if verbose:
             print("X_train descriptive stats:\n{}".format(
                 get_stats(cv_data["X_train"])))
 
+        ## Train and compute performance of classifiers
+        ###############################################
+        # mlr_scores is a list of dictionaries of scores
         mlr_scores = parallel(delayed(perform_mlr_cv)(
             clone(mlr), clf_name, clf_penalty, _lambda,
             cv_data, prefix_out, metric=eval_metric,
@@ -231,34 +239,33 @@ if __name__ == "__main__":
             verbose=verbose, random_state=randomState)
             for clf_name, clf_penalty in zip(clf_names,
                 clf_penalties))
-        #print(mlr_scores)
 
+        # Add the scores of current klen to clf_scores
         for i, clf_name in enumerate(clf_names):
-            clf_scores[clf_name][str(klen)] = mlr_scores[i]
+            clf_scores[clf_name][str(threshold)] = mlr_scores[i]
 
-    #print(clf_scores)
-
+    # Rearrange clf_scores into dict of mean and std dataframes
     scores_dfs = make_clf_score_dataframes(clf_scores,
-            klen_list_str, score_names, _max_iter)
-
-    #pprint(scores_dfs)
+            thresholds_list_str, score_names, _max_iter)
 
     ## Save and Plot results
     ########################
     str_lr = ""
     if _module == "pytorch_mlr":
-        str_lr = format(_learning_rate, '.0e') if _learning_rate not in list(
-                range(0, 10)) else str(_learning_rate)
+        str_lr = format(_learning_rate, '.0e')\
+                if _learning_rate not in list(range(0, 10))\
+                else str(_learning_rate)
         str_lr = "_LR"+str_lr
 
     str_lambda = format(_lambda, '.0e') if _lambda not in list(
             range(0, 10)) else str(_lambda)
 
     outFile = os.path.join(outdir,
-            "{}_{}_K{}{}to{}_{}{}{}_A{}_KLENGTHS_{}_{}".format(
-                virus_name, evalType, tag_kf, klen_list[0],
-                klen_list[-1], tag_fg, mlr_name, str_lr, str_lambda,
-                eval_metric, avrg_metric))
+            "{}_{}_K{}{}_V{}to{}_{}{}{}_A{}_LOWVARS_{}_{}".\
+                    format(virus_name, evalType, tag_kf, klen,
+                        thresholds_list[0], thresholds_list[-1],
+                        tag_fg, mlr_name, str_lr, str_lambda, 
+                        avrg_metric, eval_metric))
 
     if saveResults:
         write_log(scores_dfs, config, outFile+".log")
@@ -266,9 +273,8 @@ if __name__ == "__main__":
             dump(scores_dfs, fh)
 
     if plotResults:
-        plot_cv_figure(scores_dfs, score_names, klen_list_str,
-                "K length", outFile)
-    """
+        plot_cv_figure(scores_dfs, score_names, thresholds_list_str,
+                "Variance threshold", outFile)
 
     if verbose:
-        print("\nFin normale du programme")
+        print("\nFin normale du programme {}".format(sys.argv[0]))

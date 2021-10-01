@@ -31,8 +31,8 @@ __author__ = "amine"
 
 
 """
-The script evaluates the performance of different regularized MLR models
-with function to kmer lengths for virus genome classification
+The script evaluates the performance of different regularized MLR
+models with function to kmer lengths for virus genome classification
 """
 
 
@@ -76,7 +76,8 @@ if __name__ == "__main__":
     avrg_metric = config.get("evaluation", "avrg_metric")
 
     # classifier
-    _module = config.get("classifier", "module") # sklearn or pytorch_mlr
+    # sklearn or pytorch_mlr
+    _module = config.get("classifier", "module")
     _tol = config.getfloat("classifier", "tol")
     _lambda = config.getfloat("classifier", "lambda")
     _l1_ratio = config.getfloat("classifier", "l1_ratio")
@@ -116,14 +117,18 @@ if __name__ == "__main__":
     if evalType in ["CC", "CF", "FF"]:
         if evalType in ["CF", "FF"]:
             try:
-                fragmentSize = config.getint("seq_rep", "fragment_size")
-                fragmentCount = config.getint("seq_rep", "fragment_count")
-                fragmentCov = config.getfloat("seq_rep", "fragment_cov")
+                fragmentSize = config.getint("seq_rep",
+                        "fragment_size")
+                fragmentCount = config.getint("seq_rep", 
+                        "fragment_count")
+                fragmentCov = config.getfloat("seq_rep",
+                        "fragment_cov")
 
             except configparser.NoOptionError:
                 raise configparser.NoOptionError()
     else:
-        raise ValueError("evalType argument have to be one of CC, CF or"+
+        raise ValueError(
+                "evalType argument have to be one of CC, CF or"+
                 " FF values")
 
     # Check lowVarThreshold
@@ -251,8 +256,9 @@ if __name__ == "__main__":
     ########################
     str_lr = ""
     if _module == "pytorch_mlr":
-        str_lr = format(_learning_rate, '.0e') if _learning_rate not in list(
-                range(0, 10)) else str(_learning_rate)
+        str_lr = format(_learning_rate, '.0e')\
+                if _learning_rate not in list(range(0, 10))\
+                else str(_learning_rate)
         str_lr = "_LR"+str_lr
 
     str_lambda = format(_lambda, '.0e') if _lambda not in list(
@@ -262,7 +268,7 @@ if __name__ == "__main__":
             "{}_{}_K{}{}to{}_{}{}{}_A{}_KLENGTHS_{}_{}".format(
                 virus_name, evalType, tag_kf, klen_list[0],
                 klen_list[-1], tag_fg, mlr_name, str_lr, str_lambda,
-                eval_metric, avrg_metric))
+                avrg_metric, eval_metric))
 
     if saveResults:
         write_log(scores_dfs, config, outFile+".log")
@@ -274,4 +280,4 @@ if __name__ == "__main__":
                 "K length", outFile)
 
     if verbose:
-        print("\nFin normale du programme")
+        print("\nFin normale du programme {}".format(sys.argv[0]))

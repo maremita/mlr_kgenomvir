@@ -208,8 +208,9 @@ if __name__ == "__main__":
 
     str_lr = ""
     if _module == "pytorch_mlr":
-        str_lr = format(_learning_rate, '.0e') if _learning_rate not in list(
-                range(0, 10)) else str(_learning_rate)
+        str_lr = format(_learning_rate, '.0e')\
+                if _learning_rate not in list(range(0, 10))\
+                else str(_learning_rate)
         str_lr = "_LR"+str_lr
 
     str_lambda = format(_lambda, '.0e') if _lambda not in list(
@@ -228,10 +229,6 @@ if __name__ == "__main__":
 
     ## Evo parameters to evaluate
     #############################
-    #class_nbs = str_to_list(nb_class_list, cast=int)
-    #class_nbs_str = [str(c) for c in class_nbs]
-
-    #evo_params
     # Get the paramters to be assessed
     for evo_param in evo_params:
         if evo_param in ["populationSize", "generationCount"]:
@@ -288,7 +285,8 @@ if __name__ == "__main__":
         for evo_value in evo_values:
             if verbose:
                 print("\nEvaluating {} {}\n".format(
-                    evo_param_names[evo_to_assess], evo_value), flush=True)
+                    evo_param_names[evo_to_assess], evo_value),
+                    flush=True)
 
             evo_params[evo_to_assess] = evo_value
 
@@ -358,11 +356,12 @@ if __name__ == "__main__":
         ## Save and Plot iteration results
         ##################################
         outFileSim = os.path.join(outdir,
-                "{}_{}_Sim{}_EV{}to{}_K{}{}_{}{}{}_A{}_{}_{}_{}".format(
-                    virus_name, evalType, iteration, evo_values[0],
-                    evo_values[-1], tag_kf, klen, tag_fg, mlr_name,
-                    str_lr, str_lambda, evo_to_assess, eval_metric,
-                    avrg_metric))
+                "{}_{}_Sim{}_EV{}to{}_K{}{}_{}{}{}_A{}_{}_{}_{}".\
+                        format(virus_name, evalType, iteration,
+                            evo_values[0], evo_values[-1], tag_kf, 
+                            klen, tag_fg, mlr_name, str_lr,
+                            str_lambda, evo_to_assess, avrg_metric, 
+                            eval_metric))
 
         if saveResults:
             write_log(scores_dfs, config, outFileSim+".log")
@@ -383,8 +382,8 @@ if __name__ == "__main__":
                 "{}_{}_Sim_EV{}to{}_K{}{}_{}{}{}_A{}_{}_{}_{}".format(
                     virus_name, evalType, evo_values[0],
                     evo_values[-1], tag_kf, klen, tag_fg, mlr_name,
-                    str_lr, str_lambda, evo_to_assess, eval_metric,
-                    avrg_metric))
+                    str_lr, str_lambda, evo_to_assess, avrg_metric,
+                    eval_metric))
 
     if saveResults:
         write_log(sim_scores_dfs, config, outFile+".log")
@@ -396,4 +395,4 @@ if __name__ == "__main__":
                 evo_param_names[evo_to_assess], outFile)
 
     if verbose:
-        print("\nFin normale du programme")
+        print("\nFin normale du programme {}".format(sys.argv[0]))
