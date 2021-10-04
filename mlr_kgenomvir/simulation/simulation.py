@@ -28,16 +28,18 @@ class SantaSim():
             os.path.dirname(os.path.realpath(__file__)))
 
     def __init__(self, 
-            initSeqs, 
-            nbClasses, 
-            classPopSize, 
-            evoParams, 
-            outDir, 
+            initSeqs,
+            initGenCountFrac,
+            nbClasses,
+            classPopSize,
+            evoParams,
+            outDir,
             outName,
             load_data=False,
             verbose=0):
 
         self.initSeqs_ = initSeqs
+        self.initGenCountFrac_ = initGenCountFrac
         self.nbClasses_ = nbClasses
         self.classPopSize_ = classPopSize
         self.evoParams_ = copy.deepcopy(evoParams)
@@ -50,6 +52,7 @@ class SantaSim():
                 self.outName_+".fa")
         self.finalClsFile_ = os.path.join(self.outDir_, 
                 self.outName_+".csv")
+
 
         if not isinstance(self.initSeqs_, list):
             raise TypeError(
@@ -71,11 +74,14 @@ class SantaSim():
             # previous simulated data
             return self.finalFasta_, self.finalClsFile_
 
-        # if one sequence is given, we simulate and pick
+        # If one sequence is given, we simulate and pick
         # nbClasses sequences to be ancestral sequences
         if len(self.initSeqs_) == 1:
+            # initialize generation count for initial simulation
+            genCount = self.evoParams_["generationCount"]
             self.evoParams_["generationCount"] =\
-                    self.evoParams_["generationCount"]//2
+                    int(genCount * self.initGenCountFrac_)
+
             initOutput = os.path.join(self.outDir_,
                     self.outName_+"_init")
             initFasta, initTree = self.santaSim(self.initSeqs_[0],
@@ -84,7 +90,7 @@ class SantaSim():
             init_seq_col = SeqCollection.read_bio_file(initFasta)
             init_seq_cls = self.generateClasses(initTree, 
                     self.nbClasses_)
-            #print(init_seq_cls.keys())
+
             seq_names = []
             ancestral_seqs = []
             for c in init_seq_cls:
@@ -94,8 +100,13 @@ class SantaSim():
                 if seqRec.id in seq_names:
                     ancestral_seqs.append(seqRec)
 
-        # if several sequences are given, each sequence
-        # is considered as ancestral sequence for it class
+            # Set generation count for subsequent simulation
+            self.evoParams_["generationCount"] =\
+                    int(genCount * (1 - self.initGenCountFrac_))
+
+        # If several sequences are given, each sequence
+        # is considered as ancestral sequence for it class.
+        # Also we use the whole generation count 
         else:
             ancestral_seqs = self.initSeqs_
 
@@ -229,7 +240,8 @@ class SantaSim():
         else:
             fasta_length.text = str(len(sequence.seq))
             fasta_sq = et.SubElement(fasta, "sequences")
-            fasta_sq.text = str(cls.normaliseNucleotide(sequence.seq))
+            fasta_sq.text = str(
+                    cls.normaliseNucleotide(sequence.seq))
 
         pop = et.SubElement(simulation, "population")
         pop_size = et.SubElement(pop, "populationSize")

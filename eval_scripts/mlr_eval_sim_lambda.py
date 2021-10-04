@@ -137,10 +137,12 @@ if __name__ == "__main__":
                 " FF values")
 
     # simulations
+    sim_iter = config.getint("simulation", "iterations")
     init_seq = config.get("simulation", "init_seq") # file/none
     init_seq_size = config.getint("simulation", "init_seq_size",
             fallback=None)
-    sim_iter = config.getint("simulation", "iterations")
+    init_gen_count_fraction = config.getfloat("simulation",
+            "init_gen_count_fraction", fallback=0.5)
     nb_classes = config.getint("simulation", "nb_classes")
     class_pop_size = config.getint("simulation", "class_pop_size")
     evo_params = dict()
@@ -253,7 +255,7 @@ if __name__ == "__main__":
     # sim_scores
     sim_scores = []
 
-    for iteration in range(1,sim_iter + 1):
+    for iteration in range(1, sim_iter + 1):
         if verbose:
             print("\nEvaluating Simulation {}".format(iteration),
                     flush=True)
@@ -264,9 +266,9 @@ if __name__ == "__main__":
 
         # Simulate viral population based on input fasta
         ################################################
-        sim = SantaSim([initseq], nb_classes, class_pop_size,
-                evo_params, sim_dir, sim_name, load_data=loadData,
-                verbose=verbose)
+        sim = SantaSim([initseq], init_gen_count_fraction,
+                nb_classes, class_pop_size, evo_params, sim_dir, 
+                sim_name, load_data=loadData, verbose=verbose)
         sim_file, cls_file = sim()
 
         # Construct prefix for output files
