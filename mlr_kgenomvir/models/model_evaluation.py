@@ -6,9 +6,11 @@ import time
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp
+from scipy import stats
 
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+from matplotlib.offsetbox import AnchoredText
 
 from sklearn.base import clone
 from sklearn.metrics import classification_report
@@ -475,7 +477,8 @@ def plot_cv_figure(
         score_labels, 
         x_values, 
         xlabel, 
-        out_file):
+        out_file,
+        compute_krsukal=True):
 
     fig_format = "png"
     #fig_format = "eps"
@@ -499,6 +502,9 @@ def plot_cv_figure(
 
     line_scores = [l for l in score_labels if "X" not in l and l != "train_loss"]
     area_scores = [l for l in score_labels if "X" in l] 
+
+    if compute_krsukal:
+        kruskal_lists = defaultdict(list)
 
     ind = 0
     for i_c, classifier in enumerate(scores):
@@ -544,12 +550,41 @@ def plot_cv_figure(
         p.get_legend().remove()
         p.grid()
         ind += 1
-    
+
+        if compute_krsukal:
+            for label in score_labels:
+                if "X" not in label and label != "train_loss":
+                    kruskal_lists[label].append(
+                            scores[classifier]["mean"][label].tolist())
+
     # print legend for the last subplot
     p.legend(loc='upper left', fancybox=True, shadow=True, 
             bbox_to_anchor=(1.01, 1.02))
+ 
+    # Compute and plot Kruskal test pvalues
+    if compute_krsukal:
+        textstr = "Kruskal-Wallis H-test p-values:\n\n"
+        nb_labels = len(kruskal_lists.keys())
+
+        for i, label in enumerate(kruskal_lists):
+            try:
+                _, pval = stats.kruskal(*kruskal_lists[label])
+                textstr += "{}: {:.4f}".format(label, pval)
+            except ValueError as e:
+                textstr += "{}: NaN".format(label)
+                print("\nException: {}:{}".format(label, e))
+
+            if i<nb_labels-1: textstr +="\n"
+
+        at = AnchoredText(textstr, loc="lower left",
+                bbox_to_anchor=(1.01, 0),
+                bbox_transform=p.transAxes,
+                prop=dict(size=sizefont-2, alpha=0.8),
+                frameon=True)
+        at.patch.set_boxstyle("round,pad=0.,rounding_size=0.2")
+        at.patch.set_edgecolor('grey')
+        p.add_artist(at)
 
     plt.suptitle(fig_title)
     plt.savefig(fig_file, bbox_inches="tight",
             format=fig_format, dpi=fig_dpi)
-
