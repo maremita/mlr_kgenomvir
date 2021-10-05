@@ -234,9 +234,23 @@ class SantaSim():
 
         fasta = et.SubElement(simulation, "genome")
         fasta_length = et.SubElement(fasta, "length")
-        
+
         if inoculum == "none":
-            fasta_length.text = sequence
+            # inoculum = none (poly-adenine sequence) is not 
+            # implemented in SantaSimi v1.0 yet
+            #
+            # Instead we generate a random sequence
+            ## code from stackoverflow
+            bases = ("A", "G", "C", "T")
+            probs = (0.2, 0.3, 0.3, 0.2)
+
+            seqrand = ''.join(np.random.choice(bases, p=probs) 
+                    for _ in range(sequence))
+
+            fasta_length.text = str(sequence)
+            fasta_sq = et.SubElement(fasta, "sequences")
+            fasta_sq.text = str(seqrand)
+            inoculum = "all"
         else:
             fasta_length.text = str(len(sequence.seq))
             fasta_sq = et.SubElement(fasta, "sequences")
