@@ -19,6 +19,7 @@ import os.path
 from os import makedirs
 from collections import defaultdict
 from pprint import pprint
+import re
 
 import numpy as np
 import pandas as pd
@@ -159,6 +160,10 @@ if __name__ == "__main__":
             "mutation_rate", fallback="0.5")
     evo_params["transitionBias"] = config.get("simulation", 
             "transition_bias", fallback="5.0")
+    evo_params["indelModelNB"] = config.get("simulation", 
+            "indel_model_nb", fallback=None)
+    evo_params["indelProb"] = config.get("simulation", 
+            "indel_prob", fallback=None)
     # ..................................................
 
     evo_param_names = dict() 
@@ -169,8 +174,10 @@ if __name__ == "__main__":
     evo_param_names["repRecombination"] = "Recombination probability" 
     evo_param_names["mutationRate"] = "Mutation rate"
     evo_param_names["transitionBias"] = "Transition bias" 
+    evo_param_names["indelModelNB"] = "Indel NB distr. parameters" 
+    evo_param_names["indelProb"] = "Indel probability" 
 
-    # Here we fix the initial seq for all iterations.
+    # Here we set the initial seq for all iterations.
     # Maybe we need to use different init seq for each iteration
     # simulation init
     if init_seq == "file":
@@ -235,17 +242,32 @@ if __name__ == "__main__":
     for evo_param in evo_params:
         if evo_param in ["populationSize", "generationCount"]:
             cast_fun=int
-        else: 
+        elif evo_param in ["indelModelNB"]:
+            cast_fun=str
+        else:
             cast_fun=float
 
-        values = str_to_list(evo_params[evo_param], cast=cast_fun)
+        values = str_to_list(evo_params[evo_param], sep=",",
+                cast=cast_fun)
 
         if len(values) > 1:
             evo_to_assess = evo_param
             evo_values = values
-            evo_values_str = [str(e) for e in evo_values]
+            evo_values_str = [str(e).replace(' ', '-') \
+                    for e in evo_values]
         else:
             evo_params[evo_param] = cast_fun(evo_params[evo_param])
+
+    # Validate indelModelNB values
+    if evo_to_assess == "indelModelNB":
+        for i in range(len(evo_values)):
+            nb_params = re.split(r'\s+', evo_values[i])
+
+            if len(nb_params) != 2:
+                print("Warning: indel_model_nb #{} parameter is "\
+                        "not valid and set to None".format(i+1))
+                evo_values[i] = None
+                evo_values_str[i] = "None"
 
     ## MLR initialization
     #####################
@@ -284,17 +306,18 @@ if __name__ == "__main__":
             print("\nEvaluating Simulation {}".format(iteration),
                     flush=True)
 
-        for evo_value in evo_values:
+        for ind, evo_value in enumerate(evo_values):
+            evo_value_str = evo_values_str[ind]
             if verbose:
                 print("\nEvaluating {} {}\n".format(
-                    evo_param_names[evo_to_assess], evo_value),
+                    evo_param_names[evo_to_assess], evo_value_str),
                     flush=True)
 
             evo_params[evo_to_assess] = evo_value
 
             # Construct names for simulation and classes files
             ##################################################
-            sim_name = "Sim{}_EV{}".format(iteration, evo_value)
+            sim_name = "Sim{}_EV{}".format(iteration, evo_value_str)
 
             # Simulate viral population based on input fasta
             ################################################
@@ -347,7 +370,7 @@ if __name__ == "__main__":
 
             # Add the scores of current evo value to clf_scores
             for i, clf_name in enumerate(clf_names):
-                clf_scores[clf_name][str(evo_value)] = mlr_scores[i]
+                clf_scores[clf_name][evo_value_str] = mlr_scores[i]
 
         # Rearrange clf_scores into dict of mean and std dataframes
         scores_dfs = make_clf_score_dataframes(clf_scores,
@@ -360,8 +383,8 @@ if __name__ == "__main__":
         outFileSim = os.path.join(outdir,
                 "{}_{}_Sim{}_EV{}to{}_K{}{}_{}{}{}_A{}_{}_{}_{}".\
                         format(virus_name, evalType, iteration,
-                            evo_values[0], evo_values[-1], tag_kf, 
-                            klen, tag_fg, mlr_name, str_lr,
+                            evo_values_str[0], evo_values_str[-1],
+                            tag_kf, klen, tag_fg, mlr_name, str_lr,
                             str_lambda, evo_to_assess, avrg_metric, 
                             eval_metric))
 
@@ -382,10 +405,10 @@ if __name__ == "__main__":
     ##############################
     outFile = os.path.join(outdir,
                 "{}_{}_Sim_EV{}to{}_K{}{}_{}{}{}_A{}_{}_{}_{}".format(
-                    virus_name, evalType, evo_values[0],
-                    evo_values[-1], tag_kf, klen, tag_fg, mlr_name,
-                    str_lr, str_lambda, evo_to_assess, avrg_metric,
-                    eval_metric))
+                    virus_name, evalType, evo_values_str[0],
+                    evo_values_str[-1], tag_kf, klen, tag_fg,
+                    mlr_name, str_lr, str_lambda, evo_to_assess,
+                    avrg_metric, eval_metric))
 
     if saveResults:
         write_log(sim_scores_dfs, config, outFile+".log")

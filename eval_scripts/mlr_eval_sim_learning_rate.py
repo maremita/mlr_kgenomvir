@@ -19,6 +19,7 @@ import os.path
 from os import makedirs
 from collections import defaultdict
 from pprint import pprint
+import re
 
 import numpy as np
 import pandas as pd
@@ -159,8 +160,22 @@ if __name__ == "__main__":
             "mutation_rate", fallback=0.5)
     evo_params["transitionBias"] = config.getfloat("simulation", 
             "transition_bias", fallback=5.0)
+    evo_params["indelModelNB"] = config.get("simulation", 
+            "indel_model_nb", fallback=None)
+    evo_params["indelProb"] = config.getfloat("simulation", 
+            "indel_prob", fallback=None)
+ 
+    # TODO Validate all evo params elsewhere
+    # Validate indelModelNB
+    if evo_params["indelModelNB"] is not None:
+        nb_params = re.split(r'\s+', evo_params["indelModelNB"])
+        if len(nb_params) != 2:
+            print("\nWarning: indel_model_nb parameter is "\
+                    "not valid and set to None\n")
+            evo_params["indelModelNB"] = None
+            evo_params["indelProb"] = None
 
-    # Here we fix the initial seq for all iterations.
+    # Here we set the initial seq for all iterations.
     # Maybe we need to use different init seq for each iteration
     # simulation init
     if init_seq == "file":

@@ -213,9 +213,11 @@ class SantaSim():
             generationCount=100,
             fitnessFreq=0.5,
             repDualInfection=0.05,
-            repRecombination=0.01,
-            mutationRate=0.1,
-            transitionBias=5.0):
+            repRecombination=0.0001,
+            mutationRate=0.0001,
+            transitionBias=2.0,
+            indelModelNB=None,
+            indelProb=None):
 
         configFile = "{}.xml".format(outputFile)
 
@@ -257,45 +259,71 @@ class SantaSim():
             fasta_sq.text = str(
                     cls.normaliseNucleotide(sequence.seq))
 
+        #
         pop = et.SubElement(simulation, "population")
         pop_size = et.SubElement(pop, "populationSize")
         pop_size.text = str(populationSize)
         pop_inoculum = et.SubElement(pop, "inoculum")
         pop_inoculum.text = inoculum
 
+        #
         fitness = et.SubElement(simulation, "fitnessFunction")
         fitness_freq = et.SubElement(
                 fitness, "frequencyDependentFitness")
+
         fitness_freq_feature = et.SubElement(fitness_freq, "feature")
         fitness_freq_feature.text = "genome"
+
         fitness_freq_shape = et.SubElement(fitness_freq, "shape")
         fitness_freq_shape.text = str(fitnessFreq)
 
+        #
         replication = et.SubElement(simulation, "replicator")
         replication_type = et.SubElement(
                 replication, "recombinantReplicator")
+
         replication_type_dualInfection = et.SubElement(
                 replication_type, "dualInfectionProbability")
         replication_type_dualInfection.text = str(repDualInfection)
+
         replication_type_recombination = et.SubElement(
                 replication_type, "recombinationProbability")
         replication_type_recombination.text = str(repRecombination)
 
+        #
         mutation = et.SubElement(simulation, "mutator")
         mutation_type = et.SubElement(mutation, "nucleotideMutator")
+
         mutation_type_rate = et.SubElement(
                 mutation_type, "mutationRate")
         mutation_type_rate.text = str(mutationRate)
+
         mutation_type_bias = et.SubElement(
                 mutation_type, "transitionBias")
         mutation_type_bias.text = str(transitionBias)
 
+        if indelModelNB is not None and indelProb is not None:
+            indel_model_NB = et.SubElement(
+                    mutation_type, "indelmodel")
+            indel_model_NB.set("model", "NB")
+            indel_model_NB.text = str(indelModelNB)
+
+            insert_prob = et.SubElement(
+                    mutation_type, "insertprob")
+            insert_prob.text = str(indelProb)
+ 
+            delete_prob = et.SubElement(
+                    mutation_type, "deleteprob")
+            delete_prob.text = str(indelProb)
+
+        #
         first_epoch = et.SubElement(simulation, "epoch")
         epoch_name = et.SubElement(first_epoch, "name")
         epoch_name.text = "Simulation epoch 1"
         epoch_gen = et.SubElement(first_epoch, "generationCount")
         epoch_gen.text = str(generationCount)
 
+        #
         sampling = et.SubElement(simulation, "samplingSchedule")
         sampling_sampler = et.SubElement(sampling, "sampler")
         sampling_sampler_generation = et.SubElement(
@@ -337,6 +365,7 @@ class SantaSim():
         sampling_sampler_alignment_label.text =\
                 "seq_%g_%s"+"_{}".format(tag)
 
+        #
         et.ElementTree(root).write(configFile, pretty_print=True,
                 encoding='utf-8', xml_declaration=False)
 
