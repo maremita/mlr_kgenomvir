@@ -15,6 +15,7 @@ from lxml import etree as et
 import numpy as np
 from scipy.cluster import hierarchy
 from scipy.spatial.distance import pdist
+from scipy.stats import norm
 
 from joblib import Parallel, delayed
 
@@ -35,17 +36,25 @@ class SantaSim():
             evoParams,
             outDir,
             outName,
+            classPopSizeStd=None,
+            classPopSizeMax=1000,
+            classPopSizeMin=5,
             load_data=False,
+            random_state=None,
             verbose=0):
 
         self.initSeqs_ = initSeqs
         self.initGenCountFrac_ = initGenCountFrac
         self.nbClasses_ = nbClasses
         self.classPopSize_ = classPopSize
+        self.classPopSizeStd_ = classPopSizeStd
+        self.classPopSizeMax_ = classPopSizeMax
+        self.classPopSizeMin_ = classPopSizeMin
         self.evoParams_ = copy.deepcopy(evoParams)
         self.outDir_ = outDir
         self.outName_ = outName
         self.loadData_ = load_data
+        self.random_state_ = random_state
         self.verbose_ = verbose
  
         self.finalFasta_ = os.path.join(self.outDir_, 
@@ -64,6 +73,9 @@ class SantaSim():
             # simulate the whole data from one initial sequence
             assert(len(self.initSeqs_) == self.nbClasses_)
 
+        # 
+        assert(self.classPopSizeMax_ >= self.classPopSizeMin_)
+
     def __call__(self):
         if self.loadData_ and os.path.isfile(self.finalFasta_) \
                 and os.path.isfile(self.finalClsFile_): 
@@ -73,6 +85,13 @@ class SantaSim():
             # Don't run simulation and load
             # previous simulated data
             return self.finalFasta_, self.finalClsFile_
+
+        # Flag to sample each class using a class-size-based
+        # normal distribution
+        if isinstance(self.classPopSizeStd_, (int, float)):
+            sample_classes = True
+        else:
+            sample_classes = False
 
         # If one sequence is given, we simulate and pick
         # nbClasses sequences to be ancestral sequences
@@ -85,7 +104,8 @@ class SantaSim():
             initOutput = os.path.join(self.outDir_,
                     self.outName_+"_init")
             initFasta, initTree = self.santaSim(self.initSeqs_[0],
-                    "cinit", initOutput, self.evoParams_)
+                    "cinit", initOutput, self.evoParams_,
+                    seed=None)
 
             init_seq_col = SeqCollection.read_bio_file(initFasta)
             init_seq_cls = self.generateClasses(initTree, 
@@ -112,17 +132,22 @@ class SantaSim():
 
         # Run Santasim for each ancestral sequence
         # to simulate nbClasses
-        self.evoParams_["populationSize"] = self.classPopSize_
+        if sample_classes:
+            self.evoParams_["populationSize"] = self.classPopSizeMax_
+        else:
+            self.evoParams_["populationSize"] = self.classPopSize_
+
         parallel = Parallel(n_jobs=self.nbClasses_,
                 prefer="processes", verbose=self.verbose_)
         output = os.path.join(self.outDir_, self.outName_+"_")
 
         simFiles = parallel(delayed(self.santaSim)(seq, 
-            "c{}".format(i), output+str(i), self.evoParams_)
-                for i, seq in enumerate(ancestral_seqs))
+            "c{}".format(i), output+str(i), self.evoParams_,
+            seed=None) 
+            for i, seq in enumerate(ancestral_seqs))
 
-        # each fasta file corresponds to a class
-        # merge dataset
+        # Merge datasets
+        # Each fasta file corresponds to a class
         labeled_seqs = []
         for c, (simFasta, _) in enumerate(simFiles):
             seqData = SeqCollection.read_bio_file(simFasta)
@@ -130,16 +155,44 @@ class SantaSim():
             labeled_seqs.extend(seqData)
 
         sim_col = SeqCollection(labeled_seqs)
+
+        # Random Sampling of classes to create [im]balanced dataset
+        # Choosing class sizes is random and follows a normal distr.
+        if sample_classes:
+            #
+            min_ = self.classPopSizeMin_
+            max_ = self.classPopSizeMax_
+            lim_fun = lambda e: min_ if e < min_ else\
+                    (max_ if (e > max_) else e)
+            #
+            sizes = list(map(lim_fun, norm.rvs(
+                loc=self.classPopSize_, 
+                scale=self.classPopSizeStd_, 
+                size=self.nbClasses_).astype(np.int)))
+
+            if self.verbose_:
+                print("\nSampling dataset with class sizes:"\
+                        "\n{}\n".format(sizes),
+                        flush=True)
+            #
+            sim_col = sim_col.size_list_based_sample(sizes,
+                    seed=self.random_state_)
+
+        # Write fasta and label files
         sim_col.write(self.finalFasta_, self.finalClsFile_)
 
         return self.finalFasta_, self.finalClsFile_
 
     # Main function for executing santaSim
     @classmethod
-    def santaSim(cls, sequence, tag, output, evo_params):
+    def santaSim(cls, sequence, tag, output, evo_params, seed=None):
         simFasta, simTree, configFile = cls.writeSimXMLConfig(
                 sequence, tag, output, **evo_params)
-        cmd = "java -jar {} {}".format(cls.santaPath, configFile)
+        seed_str = ""
+        if seed:
+            seed_str = " -seed={}".format(seed)
+        cmd = "java -jar {}{} {}".format(cls.santaPath, seed_str,
+                configFile)
         print("Executing simulations : " + cmd)
         os.system(cmd)
         return simFasta, simTree

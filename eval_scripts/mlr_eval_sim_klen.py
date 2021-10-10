@@ -146,6 +146,8 @@ if __name__ == "__main__":
             "init_gen_count_fraction", fallback=0.5)
     nb_classes = config.getint("simulation", "nb_classes")
     class_pop_size = config.getint("simulation", "class_pop_size")
+    class_pop_size_std = config.getfloat("simulation",
+            "class_pop_size_std", fallback=None)
     evo_params = dict()
     evo_params["populationSize"] = config.getint("simulation", 
             "init_pop_size", fallback=100)
@@ -285,7 +287,9 @@ if __name__ == "__main__":
         ################################################
         sim = SantaSim([initseq], init_gen_count_fraction,
                 nb_classes, class_pop_size, evo_params, sim_dir, 
-                sim_name, load_data=loadData, verbose=verbose)
+                sim_name, classPopSizeStd=class_pop_size_std,
+                load_data=loadData, random_state=randomState,
+                verbose=verbose)
         sim_file, cls_file = sim()
 
         for klen in klen_list:

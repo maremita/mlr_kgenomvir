@@ -209,8 +209,37 @@ class SeqCollection(UserList):
             if nb_seqs <= the_limit:
                 the_limit = nb_seqs
 
+            # Don't sample if nb_seqs is inf to inf_limit
             if nb_seqs >= inf_limit:
-                new_data_ind.extend(random.sample(self.label_ind[label], the_limit))
+                new_data_ind.extend(random.sample(
+                    self.label_ind[label], the_limit))
+
+        return self[new_data_ind]
+
+    def size_list_based_sample(self, sizes, seed=None):
+        random.seed(seed)
+
+        new_data_ind = []
+
+        if not isinstance(sizes, list):
+            print("<size_list_based_sample> Sizes should be a list")
+            return self
+
+        if len(self.label_ind) != len(sizes):
+            print("<size_list_based_sample> Number of label sizes"\
+                    " is different from the number of labels")
+            return self
+
+        for i, label in enumerate(self.label_ind):
+
+            nb_seqs = len(self.label_ind[label])
+            the_limit = sizes[i]
+
+            if nb_seqs <= the_limit:
+                the_limit = nb_seqs
+
+            new_data_ind.extend(random.sample(self.label_ind[label],
+                the_limit))
 
         return self[new_data_ind]
 
