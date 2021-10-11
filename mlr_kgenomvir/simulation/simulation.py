@@ -105,7 +105,7 @@ class SantaSim():
                     self.outName_+"_init")
             initFasta, initTree = self.santaSim(self.initSeqs_[0],
                     "cinit", initOutput, self.evoParams_,
-                    seed=None)
+                    set_seed=None)
 
             init_seq_col = SeqCollection.read_bio_file(initFasta)
             init_seq_cls = self.generateClasses(initTree, 
@@ -130,21 +130,41 @@ class SantaSim():
         else:
             ancestral_seqs = self.initSeqs_
 
-        # Run Santasim for each ancestral sequence
-        # to simulate nbClasses
         if sample_classes:
-            self.evoParams_["populationSize"] = self.classPopSizeMax_
-        else:
-            self.evoParams_["populationSize"] = self.classPopSize_
+            # Random Sampling of class sizes to create
+            # [im]balanced dataset
+            # Choosing class sizes is random and follows a normal
+            # distribution
+            #
+            min_ = self.classPopSizeMin_
+            max_ = self.classPopSizeMax_
+            lim_fun = lambda e: min_ if e < min_ else\
+                    (max_ if (e > max_) else e)
+            #
+            pop_sizes = list(map(lim_fun, norm.rvs(
+                loc=self.classPopSize_, 
+                scale=self.classPopSizeStd_, 
+                size=self.nbClasses_).astype(np.int)))
 
+        else:
+            # All classes have the same size
+            pop_sizes = [self.classPopSize_]*self.nbClasses_
+
+        if self.verbose_:
+            print("\nSimulating dataset with class sizes:"\
+                    "\n{}\n".format(pop_sizes), flush=True)
+        #
         parallel = Parallel(n_jobs=self.nbClasses_,
                 prefer="processes", verbose=self.verbose_)
         output = os.path.join(self.outDir_, self.outName_+"_")
 
+        # Run Santasim for each ancestral sequence
+        # to simulate nbClasses
         simFiles = parallel(delayed(self.santaSim)(seq, 
             "c{}".format(i), output+str(i), self.evoParams_,
-            seed=None) 
-            for i, seq in enumerate(ancestral_seqs))
+            set_pop_size=pop_size, set_seed=None) 
+            for i, (seq, pop_size) in enumerate(zip(
+                ancestral_seqs, pop_sizes)))
 
         # Merge datasets
         # Each fasta file corresponds to a class
@@ -156,28 +176,6 @@ class SantaSim():
 
         sim_col = SeqCollection(labeled_seqs)
 
-        # Random Sampling of classes to create [im]balanced dataset
-        # Choosing class sizes is random and follows a normal distr.
-        if sample_classes:
-            #
-            min_ = self.classPopSizeMin_
-            max_ = self.classPopSizeMax_
-            lim_fun = lambda e: min_ if e < min_ else\
-                    (max_ if (e > max_) else e)
-            #
-            sizes = list(map(lim_fun, norm.rvs(
-                loc=self.classPopSize_, 
-                scale=self.classPopSizeStd_, 
-                size=self.nbClasses_).astype(np.int)))
-
-            if self.verbose_:
-                print("\nSampling dataset with class sizes:"\
-                        "\n{}\n".format(sizes),
-                        flush=True)
-            #
-            sim_col = sim_col.size_list_based_sample(sizes,
-                    seed=self.random_state_)
-
         # Write fasta and label files
         sim_col.write(self.finalFasta_, self.finalClsFile_)
 
@@ -185,12 +183,17 @@ class SantaSim():
 
     # Main function for executing santaSim
     @classmethod
-    def santaSim(cls, sequence, tag, output, evo_params, seed=None):
+    def santaSim(cls, sequence, tag, output, evo_params, 
+            set_pop_size=None, set_seed=None):
+
+        if set_pop_size:
+            evo_params["populationSize"] = set_pop_size
+ 
         simFasta, simTree, configFile = cls.writeSimXMLConfig(
                 sequence, tag, output, **evo_params)
         seed_str = ""
-        if seed:
-            seed_str = " -seed={}".format(seed)
+        if set_seed:
+            seed_str = " -seed={}".format(set_seed)
         cmd = "java -jar {}{} {}".format(cls.santaPath, seed_str,
                 configFile)
         print("Executing simulations : " + cmd)
