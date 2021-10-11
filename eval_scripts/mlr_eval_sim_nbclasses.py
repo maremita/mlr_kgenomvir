@@ -290,7 +290,7 @@ if __name__ == "__main__":
             # Simulate viral population based on input fasta
             ################################################
             sim = SantaSim([initseq], init_gen_count_fraction,
-                    nb_classes, class_pop_size, evo_params, sim_dir,
+                    class_nb, class_pop_size, evo_params, sim_dir,
                     sim_name, load_data=loadData, verbose=verbose)
             sim_file, cls_file = sim()
 

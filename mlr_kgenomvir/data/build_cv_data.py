@@ -42,10 +42,12 @@ def build_cv_data(
                     stride=stride)
 
             if fragment_count > 1:
-                seq_data = seq_data.stratified_sample(fragment_count, seed=random_state)
+                seq_data = seq_data.stratified_sample(fragment_count,
+                        seed=random_state)
         
         X_train, y_train = build_kmers_Xy_data(seq_data, k,
-                full_kmers=full_kmers, low_var_threshold=low_var_threshold,
+                full_kmers=full_kmers,
+                low_var_threshold=low_var_threshold,
                 dtype=np.int32)
         X_test = "X_train"  # a flag only
         y_test = "y_train"  # a flag only
@@ -60,10 +62,12 @@ def build_cv_data(
         X_train_kmer_list = X_train_kmer.kmers_list
 
         # Build Test data from fragments
-        seq_test = seq_data.extract_fragments(fragment_size, stride=stride)
+        seq_test = seq_data.extract_fragments(fragment_size,
+                stride=stride)
 
         if fragment_count > 1:
-            seq_test = seq_test.stratified_sample(fragment_count, seed=random_state)
+            seq_test = seq_test.stratified_sample(fragment_count,
+                    seed=random_state)
 
         parents = seq_test.get_parents_rank_list()
 
@@ -72,13 +76,14 @@ def build_cv_data(
         y_test = np.asarray(seq_test.labels)
 
     ## Get cross-validation indices
-    sss = StratifiedShuffleSplit(n_splits=n_splits, test_size=test_size,
-            random_state=random_state)
+    sss = StratifiedShuffleSplit(n_splits=n_splits, 
+            test_size=test_size, random_state=random_state)
 
     for train_ind, test_ind in sss.split(X_train, y_train):
         # case of CF
         if len(parents) != 0:
-            test_ind = np.array([i for p in test_ind for i in parents[p]])
+            test_ind = np.array(
+                    [i for p in test_ind for i in parents[p]])
 
         cv_indices.append((train_ind, test_ind))
 
@@ -94,7 +99,8 @@ def build_cv_data(
     ret_data["data"]["cv_indices"] = cv_indices
 
     # Settings
-    # (maybe another way to fetch arguments and add them to the dict directly)
+    # (maybe another way to fetch arguments and add them to 
+    # the dict directly)
     ret_data["settings"] = dict()
     ret_data["settings"]["eval_type"] = eval_type
     ret_data["settings"]["k"] = k
