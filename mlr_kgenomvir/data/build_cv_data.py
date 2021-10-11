@@ -6,6 +6,7 @@ from ..utils import load_Xy_cv_data, save_Xy_cv_data
 import os.path
 
 import numpy as np
+from scipy.stats import norm
 from sklearn.model_selection import StratifiedShuffleSplit
 
 
@@ -24,6 +25,7 @@ def build_cv_data(
         sample_classes=False,
         sample_class_size_min=5,
         sample_class_size_max=200,
+        sample_class_size_mean=50,
         sample_class_size_std=0,
         n_splits=3,
         test_size=0.3,
@@ -37,29 +39,30 @@ def build_cv_data(
 
     # Sample original classes (before fragmentation if any)
     if sample_classes:
-        class_sizes = seq_data.get_count_labels().values()
+        class_sizes = list(seq_data.get_count_labels().values())
         #
-        mean_ = np.mean(class_sizes)
         min_ = sample_class_size_min
         max_ = sample_class_size_max
+        mean_ = sample_class_size_mean
+        std_ = sample_class_size_std
         nb_ = len(class_sizes)
         #
         lim_fun = lambda e: min_ if e < min_ else\
                 (max_ if (e > max_) else e)
         #
         sizes = list(map(lim_fun, norm.rvs(loc=mean_, 
-            scale=sample_class_size_std, size=nb_).astype(np.int)))
+            scale=std_, size=nb_).astype(np.int)))
 
         if verbose:
-            print("\nSampling dataset with class sizes:"\
+            print("\nSampling original dataset with class sizes:"\
                     "\n{}\n".format(sizes),
                     flush=True)
         #
         seq_data = seq_data.size_list_based_sample(sizes,
                 seed=random_state)
         # to check
-        new_sizes = seq_data.get_count_labels().values
-        print(new_sizes)
+        #new_sizes = list(seq_data.get_count_labels().values())
+        #print(new_sizes)
 
     stride = int(fragment_size/fragment_cov)
 
@@ -162,6 +165,7 @@ def build_load_save_cv_data(
         sample_classes=False,
         sample_class_size_min=5,
         sample_class_size_max=200,
+        sample_class_size_mean=50,
         sample_class_size_std=0,
         n_splits=3,
         test_size=0.3,
@@ -203,6 +207,7 @@ def build_load_save_cv_data(
                 sample_classes=sample_classes,
                 sample_class_size_min=sample_class_size_min,
                 sample_class_size_max=sample_class_size_max,
+                sample_class_size_mean=sample_class_size_mean,
                 sample_class_size_std=sample_class_size_std,
                 n_splits=n_splits,
                 test_size=test_size,

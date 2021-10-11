@@ -72,6 +72,15 @@ if __name__ == "__main__":
     fullKmers = config.getboolean("seq_rep", "full_kmers")
     lowVarThreshold = config.get("seq_rep", "low_var_threshold",
             fallback=None)
+    # ........ main evaluation parameters ..............
+    class_size_std_list = config.get("seq_rep", "class_size_std")
+    # ..................................................
+    class_size_mean = config.getint("seq_rep", "class_size_mean",
+            fallback=50)
+    class_size_min = config.getint("seq_rep", "class_size_min",
+            fallback=5)
+    class_size_max = config.getint("seq_rep", "class_size_max",
+            fallback=200)
 
     # evaluation
     evalType = config.get("evaluation", "eval_type") # CC, CF or FF
@@ -151,10 +160,8 @@ if __name__ == "__main__":
             "class_pop_size_min", fallback=50)
     class_pop_size_max = config.getint("simulation",
             "class_pop_size_max", fallback=100)
-    # ........ main evaluation parameters ..............
-    class_pop_size_std_list = config.get("simulation",
-            "class_pop_size_std")
-    # ..................................................
+    class_pop_size_std = config.getfloat("simulation",
+            "class_pop_size_std", fallback=0)
     evo_params = dict()
     evo_params["populationSize"] = config.getint("simulation", 
             "init_pop_size", fallback=100)
@@ -246,7 +253,7 @@ if __name__ == "__main__":
 
     ## Class size std to evaluate
     #############################
-    class_size_stds = str_to_list(class_pop_size_std_list, cast=int)
+    class_size_stds = str_to_list(class_size_std_list, cast=float)
     class_size_stds_str = [str(c) for c in class_size_stds]
 
     ## MLR initialization
@@ -286,32 +293,33 @@ if __name__ == "__main__":
             print("\nEvaluating Simulation {}".format(iteration),
                     flush=True)
 
+        # Construct names for simulation and classes files
+        ##################################################
+        sim_name = "Sim{}".format(iteration)
+
+        # Simulate viral population based on input fasta
+        ################################################
+        sim = SantaSim([initseq], init_gen_count_fraction,
+                nb_classes, class_pop_size, evo_params, sim_dir,
+                sim_name, classPopSizeStd=class_pop_size_std,
+                classPopSizeMin=class_pop_size_min,
+                classPopSizeMax=class_pop_size_max,
+                load_data=loadData, random_state=randomState,
+                verbose=verbose)
+        sim_file, cls_file = sim()
+
         for ind, class_std in enumerate(class_size_stds):
             class_std_str = class_size_stds_str[ind]
             if verbose:
                 print("\nEvaluating class size std {}\n".format(
                     class_std_str), flush=True)
 
-            # Construct names for simulation and classes files
-            ##################################################
-            sim_name = "Sim{}_STD{}".format(iteration, class_std_str)
-
-            # Simulate viral population based on input fasta
-            ################################################
-            sim = SantaSim([initseq], init_gen_count_fraction,
-                    nb_classes, class_pop_size, evo_params, sim_dir,
-                    sim_name, classPopSizeStd=class_std,
-                    classPopSizeMin=class_pop_size_min,
-                    classPopSizeMax=class_pop_size_max,
-                    load_data=loadData, random_state=randomState,
-                    verbose=verbose)
-            sim_file, cls_file = sim()
-
             # Construct prefix for output files
             ###################################
             prefix_out = os.path.join(outdir, 
-                    "{}_{}_{}_K{}{}_{}".format(virus_name,
-                        evalType, sim_name, tag_kf, klen, tag_fg))
+                    "{}_{}_{}_K{}{}_CSTD{}_{}".format(virus_name,
+                        evalType, sim_name, tag_kf, klen, class_std,
+                        tag_fg))
 
             ## Generate training and testing data
             ####################################
@@ -323,6 +331,11 @@ if __name__ == "__main__":
                     k=klen,
                     full_kmers=fullKmers,
                     low_var_threshold=lowVarThreshold,
+                    sample_classes=True,
+                    sample_class_size_min=class_size_min,
+                    sample_class_size_max=class_size_max,
+                    sample_class_size_mean=class_size_mean,
+                    sample_class_size_std=class_std,
                     n_splits=cv_folds,
                     test_size=testSize,
                     load_data=loadData,
@@ -362,11 +375,11 @@ if __name__ == "__main__":
         ## Save and Plot iteration results
         ##################################
         outFileSim = os.path.join(outdir,
-                "{}_{}_Sim{}_STD{}to{}_K{}{}_{}{}{}_A{}_CLASSSTD_"\
+                "{}_{}_Sim{}_K{}{}_CSTD{}to{}_{}{}{}_A{}_CLASSSTD_"\
                         "{}_{}".format(
-                    virus_name, evalType, iteration, 
-                    class_size_stds_str[0], class_size_stds_str[-1],
-                    tag_kf, klen, tag_fg, mlr_name,
+                    virus_name, evalType, iteration,  
+                    tag_kf, klen, class_size_stds_str[0],
+                    class_size_stds_str[-1], tag_fg, mlr_name,
                     str_lr, str_lambda, avrg_metric, eval_metric))
 
         if saveResults:
@@ -376,7 +389,7 @@ if __name__ == "__main__":
 
         if plotResults:
             plot_cv_figure(scores_dfs, score_names,
-                    class_size_stds_str, "Class size STD",
+                    class_size_stds_str, "Sampling class size STD",
                     outFileSim)
 
     # Compute the mean of all scores per classifier
@@ -386,11 +399,10 @@ if __name__ == "__main__":
     ## Save and Plot final results
     ##############################
     outFile = os.path.join(outdir,
-            "{}_{}_Sim_STD{}to{}_K{}{}_{}{}{}_A{}_CLASSSTD_{}_{}".\
+            "{}_{}_Sim_K{}{}_CSTD{}to{}_{}{}{}_A{}_CLASSSTD_{}_{}".\
                     format(virus_name, evalType, 
-                        class_size_stds_str[0], 
-                        class_size_stds_str[-1],
-                        tag_kf, klen, tag_fg,
+                        tag_kf, klen, class_size_stds_str[0], 
+                        class_size_stds_str[-1], tag_fg,
                         mlr_name, str_lr, str_lambda,
                         avrg_metric, eval_metric))
 
@@ -401,7 +413,8 @@ if __name__ == "__main__":
 
     if plotResults:
         plot_cv_figure(sim_scores_dfs, score_names,
-                class_size_stds_str, "Class size STD", outFile)
+                class_size_stds_str, "Sampling class size STD",
+                outFile)
 
     if verbose:
         print("\nFin normale du programme {}".format(sys.argv[0]))
