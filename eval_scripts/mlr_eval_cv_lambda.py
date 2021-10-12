@@ -66,6 +66,12 @@ if __name__ == "__main__":
     fullKmers = config.getboolean("seq_rep", "full_kmers") 
     lowVarThreshold = config.get("seq_rep", "low_var_threshold", 
             fallback=None)
+    fragmentSize = config.getint("seq_rep", "fragment_size",
+            fallback=1000)
+    fragmentCount = config.getint("seq_rep", "fragment_count",
+            fallback=1000)
+    fragmentCov = config.getfloat("seq_rep", "fragment_cov",
+            fallback=2)
 
     # evaluation
     evalType = config.get("evaluation", "eval_type") # CC, CF or FF
@@ -115,19 +121,7 @@ if __name__ == "__main__":
     randomState = config.getint("settings", "random_state",
             fallback=42)
 
-    if evalType in ["CC", "CF", "FF"]:
-        if evalType in ["CF", "FF"]:
-            try:
-                fragmentSize = config.getint("seq_rep", 
-                        "fragment_size")
-                fragmentCount = config.getint("seq_rep",
-                        "fragment_count")
-                fragmentCov = config.getfloat("seq_rep",
-                        "fragment_cov") 
-
-            except configparser.NoOptionError:
-                raise configparser.NoOptionError()
-    else:
+    if evalType not in ["CC", "CF", "FF"]:
         raise ValueError(
                 "evalType argument have to be one of CC, CF or"+
                 " FF values")
@@ -230,7 +224,7 @@ if __name__ == "__main__":
     for i, (clf_name, clf_penalty) in enumerate(
             zip(clf_names, clf_penalties)):
         if verbose:
-            print("\n{}. Evaluating {}".format(i, clf_name),
+            print("\n{}. Evaluating {}".format(i+1, clf_name),
                     flush=True)
  
         mlr_scores = parallel(delayed(perform_mlr_cv)(

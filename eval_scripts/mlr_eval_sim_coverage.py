@@ -71,8 +71,10 @@ if __name__ == "__main__":
     fullKmers = config.getboolean("seq_rep", "full_kmers")
     lowVarThreshold = config.get("seq_rep", "low_var_threshold",
             fallback=None)
-    fragmentSize = config.getint("seq_rep", "fragment_size")
-    fragmentCount = config.getint("seq_rep", "fragment_count")
+    fragmentSize = config.getint("seq_rep", "fragment_size",
+            fallback=1000)
+    fragmentCount = config.getint("seq_rep", "fragment_count",
+            fallback=1000)
     # ........ main evaluation parameters ..............
     fragmentCovs = config.get("seq_rep", "fragment_cov")
     # ..................................................
@@ -134,7 +136,7 @@ if __name__ == "__main__":
 
     if evalType not in ["CF", "FF"]:
         raise ValueError(
-                "evalType argument have to be CF or FF values")
+                "evalType argument have to be CF or FF value")
 
     # simulations
     sim_iter = config.getint("simulation", "iterations")

@@ -71,6 +71,12 @@ if __name__ == "__main__":
     fullKmers = config.getboolean("seq_rep", "full_kmers")
     lowVarThreshold = config.get("seq_rep", "low_var_threshold",
             fallback=None)
+    fragmentSize = config.getint("seq_rep", "fragment_size",
+            fallback=1000)
+    fragmentCount = config.getint("seq_rep", "fragment_count",
+            fallback=1000)
+    fragmentCov = config.getfloat("seq_rep", "fragment_cov",
+            fallback=2)
     # Paramters for sampling dataset
     class_size_min = config.getint("seq_rep", "class_size_min",
             fallback=5)
@@ -127,19 +133,7 @@ if __name__ == "__main__":
     randomState = config.getint("settings", "random_state",
             fallback=42)
 
-    if evalType in ["CC", "CF", "FF"]:
-        if evalType in ["CF", "FF"]:
-            try:
-                fragmentSize = config.getint("seq_rep",
-                        "fragment_size")
-                fragmentCount = config.getint("seq_rep", 
-                        "fragment_count")
-                fragmentCov = config.getfloat("seq_rep",
-                        "fragment_cov")
-
-            except configparser.NoOptionError:
-                raise configparser.NoOptionError()
-    else:
+    if evalType not in ["CC", "CF", "FF"]:
         raise ValueError(
                 "evalType argument have to be one of CC, CF or"+
                 " FF values")

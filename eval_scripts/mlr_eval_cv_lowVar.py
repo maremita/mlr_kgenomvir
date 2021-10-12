@@ -67,6 +67,12 @@ if __name__ == "__main__":
     # ........ main evaluation parameters ..............
     lowVarThreshold = config.get("seq_rep", "low_var_threshold")
     # ..................................................
+    fragmentSize = config.getint("seq_rep", "fragment_size",
+            fallback=1000)
+    fragmentCount = config.getint("seq_rep", "fragment_count",
+            fallback=1000)
+    fragmentCov = config.getfloat("seq_rep", "fragment_cov",
+            fallback=2)
 
     # evaluation
     evalType = config.get("evaluation", "eval_type") # CC, CF or FF
@@ -114,19 +120,7 @@ if __name__ == "__main__":
     randomState = config.getint("settings", "random_state",
             fallback=42)
 
-    if evalType in ["CC", "CF", "FF"]:
-        if evalType in ["CF", "FF"]:
-            try:
-                fragmentSize = config.getint("seq_rep",
-                        "fragment_size")
-                fragmentCount = config.getint("seq_rep", 
-                        "fragment_count")
-                fragmentCov = config.getfloat("seq_rep", 
-                        "fragment_cov")
-
-            except configparser.NoOptionError:
-                raise configparser.NoOptionError()
-    else:
+    if evalType not in ["CC", "CF", "FF"]:
         raise ValueError(
                 "evalType argument have to be one of CC, CF or"+
                 " FF values")
@@ -188,16 +182,17 @@ if __name__ == "__main__":
     parallel = Parallel(n_jobs=n_mainJobs, prefer="processes",
             verbose=verbose)
 
-    for threshold in thresholds_list:
+    for ind, threshold in enumerate(thresholds_list):
+        threshold_str = thresholds_list_str[ind]
         if verbose:
-            print("\nEvaluating variance threshold {}".format(
-                threshold), flush=True)
+            print("\n{}. Evaluating variance threshold {}".format(
+                ind+1, threshold_str), flush=True)
 
         # Construct prefix for output files
         ###################################
         prefix_out = os.path.join(outdir,
                 "{}_{}_K{}{}_V{}_{}".format(virus_name,
-                    evalType, tag_kf, klen, threshold, tag_fg))
+                    evalType, tag_kf, klen, threshold_str, tag_fg))
 
         ## Generate training and testing data
         ####################################
@@ -242,7 +237,7 @@ if __name__ == "__main__":
 
         # Add the scores of current klen to clf_scores
         for i, clf_name in enumerate(clf_names):
-            clf_scores[clf_name][str(threshold)] = mlr_scores[i]
+            clf_scores[clf_name][threshold_str] = mlr_scores[i]
 
     # Rearrange clf_scores into dict of mean and std dataframes
     scores_dfs = make_clf_score_dataframes(clf_scores,
@@ -263,7 +258,8 @@ if __name__ == "__main__":
     outFile = os.path.join(outdir,
             "{}_{}_K{}{}_V{}to{}_{}{}{}_A{}_LOWVARS_{}_{}".\
                     format(virus_name, evalType, tag_kf, klen,
-                        thresholds_list[0], thresholds_list[-1],
+                        thresholds_list_str[0],
+                        thresholds_list_str[-1],
                         tag_fg, mlr_name, str_lr, str_lambda, 
                         avrg_metric, eval_metric))
 
