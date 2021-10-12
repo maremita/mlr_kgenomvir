@@ -78,7 +78,7 @@ def build_cv_data(
             if fragment_count > 1:
                 seq_data = seq_data.stratified_sample(fragment_count,
                         seed=random_state)
-        
+ 
         X_train, y_train = build_kmers_Xy_data(seq_data, k,
                 full_kmers=full_kmers,
                 low_var_threshold=low_var_threshold,
@@ -143,6 +143,11 @@ def build_cv_data(
     ret_data["settings"]["fragment_size"] = fragment_size
     ret_data["settings"]["fragment_cov"] = fragment_cov
     ret_data["settings"]["fragment_count"] = fragment_count
+    ret_data["settings"]["sample_classes"] = sample_classes
+    ret_data["settings"]["sample_class_size_min"] = sample_class_size_min
+    ret_data["settings"]["sample_class_size_max"] = sample_class_size_max
+    ret_data["settings"]["sample_class_size_mean"] = sample_class_size_mean
+    ret_data["settings"]["sample_class_size_std"] = sample_class_size_std
     ret_data["settings"]["n_splits"] = n_splits
     ret_data["settings"]["test_size"] = test_size
     ret_data["settings"]["prefix"] = prefix

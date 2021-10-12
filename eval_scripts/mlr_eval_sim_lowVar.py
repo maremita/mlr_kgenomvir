@@ -73,6 +73,15 @@ if __name__ == "__main__":
     # ........ main evaluation parameters ..............
     lowVarThreshold = config.get("seq_rep", "low_var_threshold")
     # ..................................................
+    # Paramters for sampling dataset
+    class_size_min = config.getint("seq_rep", "class_size_min",
+            fallback=5)
+    class_size_max = config.getint("seq_rep", "class_size_max",
+            fallback=200)
+    class_size_mean = config.getint("seq_rep", "class_size_mean",
+            fallback=50)
+    class_size_std = config.getfloat("seq_rep", "class_size_std",
+            fallback=None)
 
     # evaluation
     evalType = config.get("evaluation", "eval_type") # CC, CF or FF
@@ -144,8 +153,18 @@ if __name__ == "__main__":
             fallback=None)
     init_gen_count_fraction = config.getfloat("simulation",
             "init_gen_count_fraction", fallback=0.5)
-    nb_classes = config.getint("simulation", "nb_classes")
-    class_pop_size = config.getint("simulation", "class_pop_size")
+
+    nb_classes = config.getint("simulation", 
+            "nb_classes", fallback=5)
+    class_pop_size = config.getint("simulation", 
+            "class_pop_size", fallback=25)
+    class_pop_size_min = config.getint("simulation",
+            "class_pop_size_min", fallback=50)
+    class_pop_size_max = config.getint("simulation",
+            "class_pop_size_max", fallback=100)
+    class_pop_size_std = config.getfloat("simulation",
+            "class_pop_size_std", fallback=None)
+
     evo_params = dict()
     evo_params["populationSize"] = config.getint("simulation", 
             "init_pop_size", fallback=100)
@@ -186,6 +205,22 @@ if __name__ == "__main__":
         # writeSimXMLConfig of SantaSim will check if initSeq
         # is an integer
         initseq = init_seq_size
+
+    # Sampling original dataset
+    ###########################
+    sampling_args = dict()
+    sample_classes = False
+
+    if bool(class_size_std):
+        sample_classes = True
+
+    sampling_args = {
+            'sample_classes':sample_classes,
+            'sample_class_size_min':class_size_min,
+            'sample_class_size_max':class_size_max,
+            'sample_class_size_mean':class_size_mean,
+            'sample_class_size_std':class_size_std
+            }
 
     ## Tags for prefix outputs
     ##########################
@@ -270,26 +305,33 @@ if __name__ == "__main__":
 
         # Construct names for simulation and classes files
         ##################################################
-        sim_name = "sim_{}".format(iteration)
+        sim_name = "Sim{}".format(iteration)
 
         # Simulate viral population based on input fasta
         ################################################
-        sim = SantaSim([initseq], init_gen_count_fraction,
-                nb_classes, class_pop_size, evo_params, sim_dir, 
-                sim_name, load_data=loadData, verbose=verbose)
+        sim = SantaSim([initseq], evo_params, sim_dir, sim_name,
+                init_gen_count_frac=init_gen_count_fraction,
+                nb_classes=nb_classes,
+                class_pop_size=class_pop_size,
+                class_pop_size_std=class_pop_size_std,
+                class_pop_size_min=class_pop_size_min,
+                class_pop_size_max=class_pop_size_max,
+                load_data=loadData, random_state=randomState,
+                verbose=verbose)
         sim_file, cls_file = sim()
 
-        for threshold in thresholds_list:
+        for ind, threshold in enumerate(thresholds_list):
+            threshold_str = thresholds_list_str[ind]
             if verbose:
-                print("\nEvaluating variance threshold {}".format(
-                    threshold), flush=True)
+                print("\n{}. Evaluating variance threshold {}".format(
+                    ind+1, threshold_str), flush=True)
 
             # Construct prefix for output files
             ###################################
             prefix_out = os.path.join(outdir, 
                     "{}_{}_{}_K{}{}_V{}_{}".format(virus_name,
-                        evalType, sim_name, tag_kf, klen, threshold,
-                        tag_fg))
+                        evalType, sim_name, tag_kf, klen,
+                        threshold_str, tag_fg))
 
             ## Generate training and testing data
             ####################################
@@ -307,6 +349,7 @@ if __name__ == "__main__":
                     save_data=saveData,
                     random_state=randomState,
                     verbose=verbose,
+                    **sampling_args,
                     **args_fg)
 
             cv_data = tt_data["data"]
@@ -330,7 +373,7 @@ if __name__ == "__main__":
 
             # Add the scores of current threshold to clf_scores
             for i, clf_name in enumerate(clf_names):
-                clf_scores[clf_name][str(threshold)] = mlr_scores[i]
+                clf_scores[clf_name][threshold_str] = mlr_scores[i]
 
         # Rearrange clf_scores into dict of mean and std dataframes
         scores_dfs = make_clf_score_dataframes(clf_scores,
@@ -343,8 +386,8 @@ if __name__ == "__main__":
         outFileSim = os.path.join(outdir,
                 "{}_{}_{}_K{}{}_V{}to{}_{}{}{}_A{}_LOWVARS_{}_{}".\
                         format(virus_name, evalType, sim_name, tag_kf,
-                            klen, thresholds_list[0], 
-                            thresholds_list[-1], tag_fg,
+                            klen, thresholds_list_str[0], 
+                            thresholds_list_str[-1], tag_fg,
                             mlr_name, str_lr, str_lambda, 
                             avrg_metric, eval_metric))
 
@@ -365,10 +408,10 @@ if __name__ == "__main__":
     ## Save and Plot final results
     ##############################
     outFile = os.path.join(outdir,
-            "{}_{}_sim_K{}{}_V{}to{}_{}{}{}_A{}_LOWVARS_{}_{}".format(
+            "{}_{}_Sim_K{}{}_V{}to{}_{}{}{}_A{}_LOWVARS_{}_{}".format(
                 virus_name, evalType, tag_kf, klen, 
-                thresholds_list[0], thresholds_list[-1], tag_fg,
-                mlr_name, str_lr, str_lambda, 
+                thresholds_list_str[0], thresholds_list_str[-1],
+                tag_fg, mlr_name, str_lr, str_lambda, 
                 avrg_metric, eval_metric))
 
     if saveResults:

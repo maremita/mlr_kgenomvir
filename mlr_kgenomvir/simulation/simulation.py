@@ -29,30 +29,30 @@ class SantaSim():
             os.path.dirname(os.path.realpath(__file__)))
 
     def __init__(self, 
-            initSeqs,
-            initGenCountFrac,
-            nbClasses,
-            classPopSize,
-            evoParams,
-            outDir,
-            outName,
-            classPopSizeStd=None,
-            classPopSizeMax=1000,
-            classPopSizeMin=5,
+            init_seqs,
+            evo_params,
+            out_dir,
+            out_name,
+            init_gen_count_frac=0.3,
+            nb_classes=5,
+            class_pop_size=25,
+            class_pop_size_std=None,
+            class_pop_size_max=1000,
+            class_pop_size_min=5,
             load_data=False,
             random_state=None,
             verbose=0):
 
-        self.initSeqs_ = initSeqs
-        self.initGenCountFrac_ = initGenCountFrac
-        self.nbClasses_ = nbClasses
-        self.classPopSize_ = classPopSize
-        self.classPopSizeStd_ = classPopSizeStd
-        self.classPopSizeMax_ = classPopSizeMax
-        self.classPopSizeMin_ = classPopSizeMin
-        self.evoParams_ = copy.deepcopy(evoParams)
-        self.outDir_ = outDir
-        self.outName_ = outName
+        self.initSeqs_ = init_seqs
+        self.initGenCountFrac_ = init_gen_count_frac
+        self.nbClasses_ = nb_classes
+        self.classPopSize_ = class_pop_size
+        self.classPopSizeStd_ = class_pop_size_std
+        self.classPopSizeMax_ = class_pop_size_max
+        self.classPopSizeMin_ = class_pop_size_min
+        self.evoParams_ = copy.deepcopy(evo_params)
+        self.outDir_ = out_dir
+        self.outName_ = out_name
         self.loadData_ = load_data
         self.random_state_ = random_state
         self.verbose_ = verbose

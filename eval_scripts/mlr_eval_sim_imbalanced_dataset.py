@@ -72,6 +72,15 @@ if __name__ == "__main__":
     fullKmers = config.getboolean("seq_rep", "full_kmers")
     lowVarThreshold = config.get("seq_rep", "low_var_threshold",
             fallback=None)
+    # Paramters for sampling dataset
+    class_size_min = config.getint("seq_rep", "class_size_min",
+            fallback=5)
+    class_size_max = config.getint("seq_rep", "class_size_max",
+            fallback=200)
+    class_size_mean = config.getint("seq_rep", "class_size_mean",
+            fallback=50)
+    class_size_std = config.getfloat("seq_rep", "class_size_std",
+            fallback=None)
 
     # evaluation
     evalType = config.get("evaluation", "eval_type") # CC, CF or FF
@@ -143,6 +152,7 @@ if __name__ == "__main__":
             fallback=None)
     init_gen_count_fraction = config.getfloat("simulation",
             "init_gen_count_fraction", fallback=0.5)
+
     nb_classes = config.getint("simulation", 
             "nb_classes", fallback=5)
     class_pop_size = config.getint("simulation", 
@@ -155,6 +165,7 @@ if __name__ == "__main__":
     class_pop_size_std_list = config.get("simulation",
             "class_pop_size_std")
     # ..................................................
+
     evo_params = dict()
     evo_params["populationSize"] = config.getint("simulation", 
             "init_pop_size", fallback=100)
@@ -195,6 +206,22 @@ if __name__ == "__main__":
         # writeSimXMLConfig of SantaSim will check if initSeq
         # is an integer
         initseq = init_seq_size
+
+    # Sampling original dataset
+    ###########################
+    sampling_args = dict()
+    sample_classes = False
+
+    if bool(class_size_std):
+        sample_classes = True
+
+    sampling_args = {
+            'sample_classes':sample_classes,
+            'sample_class_size_min':class_size_min,
+            'sample_class_size_max':class_size_max,
+            'sample_class_size_mean':class_size_mean,
+            'sample_class_size_std':class_size_std
+            }
 
     # Check lowVarThreshold
     # #####################
@@ -289,8 +316,8 @@ if __name__ == "__main__":
         for ind, class_std in enumerate(class_size_stds):
             class_std_str = class_size_stds_str[ind]
             if verbose:
-                print("\nEvaluating class size std {}\n".format(
-                    class_std_str), flush=True)
+                print("\n{}. Evaluating class size std: {}\n".format(
+                    ind+1, class_std_str), flush=True)
 
             # Construct names for simulation and classes files
             ##################################################
@@ -299,11 +326,13 @@ if __name__ == "__main__":
 
             # Simulate viral population based on input fasta
             ################################################
-            sim = SantaSim([initseq], init_gen_count_fraction,
-                    nb_classes, class_pop_size, evo_params, sim_dir,
-                    sim_name, classPopSizeStd=class_std,
-                    classPopSizeMin=class_pop_size_min,
-                    classPopSizeMax=class_pop_size_max,
+            sim = SantaSim([initseq], evo_params, sim_dir, sim_name,
+                    init_gen_count_frac=init_gen_count_fraction,
+                    nb_classes=nb_classes,
+                    class_pop_size=class_pop_size,
+                    class_pop_size_std=class_std,
+                    class_pop_size_min=class_pop_size_min,
+                    class_pop_size_max=class_pop_size_max,
                     load_data=loadData, random_state=randomState,
                     verbose=verbose)
             sim_file, cls_file = sim()
@@ -330,6 +359,7 @@ if __name__ == "__main__":
                     save_data=saveData,
                     random_state=randomState,
                     verbose=verbose,
+                    **sampling_args,
                     **args_fg)
 
             cv_data = tt_data["data"]
@@ -387,7 +417,7 @@ if __name__ == "__main__":
     ## Save and Plot final results
     ##############################
     outFile = os.path.join(outdir,
-            "{}_{}_PSim_STD{}to{}_K{}{}_{}{}{}_A{}_POPSTD_{}_{}".\
+            "{}_{}_Sim_PSTD{}to{}_K{}{}_{}{}{}_A{}_POPSTD_{}_{}".\
                     format(virus_name, evalType, 
                         class_size_stds_str[0], 
                         class_size_stds_str[-1],

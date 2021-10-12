@@ -71,6 +71,15 @@ if __name__ == "__main__":
     fullKmers = config.getboolean("seq_rep", "full_kmers")
     lowVarThreshold = config.get("seq_rep", "low_var_threshold",
             fallback=None)
+    # Paramters for sampling dataset
+    class_size_min = config.getint("seq_rep", "class_size_min",
+            fallback=5)
+    class_size_max = config.getint("seq_rep", "class_size_max",
+            fallback=200)
+    class_size_mean = config.getint("seq_rep", "class_size_mean",
+            fallback=50)
+    class_size_std = config.getfloat("seq_rep", "class_size_std",
+            fallback=None)
 
     # evaluation
     evalType = config.get("evaluation", "eval_type") # CC, CF or FF
@@ -142,8 +151,18 @@ if __name__ == "__main__":
             fallback=None)
     init_gen_count_fraction = config.getfloat("simulation",
             "init_gen_count_fraction", fallback=0.5)
-    nb_classes = config.getint("simulation", "nb_classes")
-    class_pop_size = config.getint("simulation", "class_pop_size")
+
+    nb_classes = config.getint("simulation", 
+            "nb_classes", fallback=5)
+    class_pop_size = config.getint("simulation", 
+            "class_pop_size", fallback=25)
+    class_pop_size_min = config.getint("simulation",
+            "class_pop_size_min", fallback=50)
+    class_pop_size_max = config.getint("simulation",
+            "class_pop_size_max", fallback=100)
+    class_pop_size_std = config.getfloat("simulation",
+            "class_pop_size_std", fallback=None)
+
     # ........ main evaluation parameters ..............
     evo_params = dict()
     evo_params["populationSize"] = config.get("simulation", 
@@ -187,6 +206,22 @@ if __name__ == "__main__":
         # writeSimXMLConfig of SantaSim will check if initSeq
         # is an integer
         initseq = init_seq_size
+
+    # Sampling original dataset
+    ###########################
+    sampling_args = dict()
+    sample_classes = False
+
+    if bool(class_size_std):
+        sample_classes = True
+
+    sampling_args = {
+            'sample_classes':sample_classes,
+            'sample_class_size_min':class_size_min,
+            'sample_class_size_max':class_size_max,
+            'sample_class_size_mean':class_size_mean,
+            'sample_class_size_std':class_size_std
+            }
 
     # Check lowVarThreshold
     # #####################
@@ -309,7 +344,7 @@ if __name__ == "__main__":
         for ind, evo_value in enumerate(evo_values):
             evo_value_str = evo_values_str[ind]
             if verbose:
-                print("\nEvaluating {} {}\n".format(
+                print("\n{}. Evaluating {} {}\n".format(ind+1,
                     evo_param_names[evo_to_assess], evo_value_str),
                     flush=True)
 
@@ -321,9 +356,15 @@ if __name__ == "__main__":
 
             # Simulate viral population based on input fasta
             ################################################
-            sim = SantaSim([initseq], init_gen_count_fraction,
-                    nb_classes, class_pop_size, evo_params, sim_dir,
-                    sim_name, load_data=loadData, verbose=verbose)
+            sim = SantaSim([initseq], evo_params, sim_dir, sim_name,
+                    init_gen_count_frac=init_gen_count_fraction,
+                    nb_classes=nb_classes,
+                    class_pop_size=class_pop_size,
+                    class_pop_size_std=class_pop_size_std,
+                    class_pop_size_min=class_pop_size_min,
+                    class_pop_size_max=class_pop_size_max,
+                    load_data=loadData, random_state=randomState,
+                    verbose=verbose)
             sim_file, cls_file = sim()
 
             # Construct prefix for output files
@@ -348,6 +389,7 @@ if __name__ == "__main__":
                     save_data=saveData,
                     random_state=randomState,
                     verbose=verbose,
+                    **sampling_args,
                     **args_fg)
 
             cv_data = tt_data["data"]
@@ -355,7 +397,7 @@ if __name__ == "__main__":
             if verbose:
                 print("X_train descriptive stats:\n{}".format(
                     get_stats(cv_data["X_train"])))
-            
+ 
             ## Train and compute performance of classifiers
             ###############################################
             mlr_scores = parallel(delayed(perform_mlr_cv)(

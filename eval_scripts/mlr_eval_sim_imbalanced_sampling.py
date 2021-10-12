@@ -72,15 +72,16 @@ if __name__ == "__main__":
     fullKmers = config.getboolean("seq_rep", "full_kmers")
     lowVarThreshold = config.get("seq_rep", "low_var_threshold",
             fallback=None)
-    # ........ main evaluation parameters ..............
-    class_size_std_list = config.get("seq_rep", "class_size_std")
-    # ..................................................
-    class_size_mean = config.getint("seq_rep", "class_size_mean",
-            fallback=50)
+    # Paramters for sampling dataset
     class_size_min = config.getint("seq_rep", "class_size_min",
             fallback=5)
     class_size_max = config.getint("seq_rep", "class_size_max",
             fallback=200)
+    class_size_mean = config.getint("seq_rep", "class_size_mean",
+            fallback=50)
+    # ........ main evaluation parameters ..............
+    class_size_std_list = config.get("seq_rep", "class_size_std")
+    # ..................................................
 
     # evaluation
     evalType = config.get("evaluation", "eval_type") # CC, CF or FF
@@ -152,6 +153,7 @@ if __name__ == "__main__":
             fallback=None)
     init_gen_count_fraction = config.getfloat("simulation",
             "init_gen_count_fraction", fallback=0.5)
+
     nb_classes = config.getint("simulation", 
             "nb_classes", fallback=5)
     class_pop_size = config.getint("simulation", 
@@ -162,6 +164,7 @@ if __name__ == "__main__":
             "class_pop_size_max", fallback=100)
     class_pop_size_std = config.getfloat("simulation",
             "class_pop_size_std", fallback=0)
+
     evo_params = dict()
     evo_params["populationSize"] = config.getint("simulation", 
             "init_pop_size", fallback=100)
@@ -299,11 +302,13 @@ if __name__ == "__main__":
 
         # Simulate viral population based on input fasta
         ################################################
-        sim = SantaSim([initseq], init_gen_count_fraction,
-                nb_classes, class_pop_size, evo_params, sim_dir,
-                sim_name, classPopSizeStd=class_pop_size_std,
-                classPopSizeMin=class_pop_size_min,
-                classPopSizeMax=class_pop_size_max,
+        sim = SantaSim([initseq], evo_params, sim_dir, sim_name,
+                init_gen_count_frac=init_gen_count_fraction,
+                nb_classes=nb_classes,
+                class_pop_size=class_pop_size,
+                class_pop_size_std=class_pop_size_std,
+                class_pop_size_min=class_pop_size_min,
+                class_pop_size_max=class_pop_size_max,
                 load_data=loadData, random_state=randomState,
                 verbose=verbose)
         sim_file, cls_file = sim()
@@ -311,8 +316,8 @@ if __name__ == "__main__":
         for ind, class_std in enumerate(class_size_stds):
             class_std_str = class_size_stds_str[ind]
             if verbose:
-                print("\nEvaluating class size std {}\n".format(
-                    class_std_str), flush=True)
+                print("\n{}. Evaluating class size std {}\n".format(
+                    ind+1, class_std_str), flush=True)
 
             # Construct prefix for output files
             ###################################
@@ -375,9 +380,9 @@ if __name__ == "__main__":
         ## Save and Plot iteration results
         ##################################
         outFileSim = os.path.join(outdir,
-                "{}_{}_Sim{}_K{}{}_CSTD{}to{}_{}{}{}_A{}_CLASSSTD_"\
+                "{}_{}_{}_K{}{}_CSTD{}to{}_{}{}{}_A{}_CLASSSTD_"\
                         "{}_{}".format(
-                    virus_name, evalType, iteration,  
+                    virus_name, evalType, sim_name,
                     tag_kf, klen, class_size_stds_str[0],
                     class_size_stds_str[-1], tag_fg, mlr_name,
                     str_lr, str_lambda, avrg_metric, eval_metric))
