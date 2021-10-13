@@ -321,7 +321,7 @@ if __name__ == "__main__":
                 class_pop_size_max=class_pop_size_max,
                 load_data=loadData, random_state=randomState,
                 verbose=verbose)
-        sim_file, cls_file = sim()
+        sim_file, cls_file = sim.sim_labeled_dataset()
 
         for ind, klen in enumerate(klen_list):
             klen_str = klen_list_str[ind]

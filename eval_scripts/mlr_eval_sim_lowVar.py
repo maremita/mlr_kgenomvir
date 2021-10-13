@@ -312,7 +312,7 @@ if __name__ == "__main__":
                 class_pop_size_max=class_pop_size_max,
                 load_data=loadData, random_state=randomState,
                 verbose=verbose)
-        sim_file, cls_file = sim()
+        sim_file, cls_file = sim.sim_labeled_dataset()
 
         for ind, threshold in enumerate(thresholds_list):
             threshold_str = thresholds_list_str[ind]

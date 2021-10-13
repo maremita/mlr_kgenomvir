@@ -327,7 +327,7 @@ if __name__ == "__main__":
                     class_pop_size_max=class_pop_size_max,
                     load_data=loadData, random_state=randomState,
                     verbose=verbose)
-            sim_file, cls_file = sim()
+            sim_file, cls_file = sim.sim_labeled_dataset()
 
             # Construct prefix for output files
             ###################################

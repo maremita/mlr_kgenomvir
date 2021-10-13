@@ -305,7 +305,7 @@ if __name__ == "__main__":
                 class_pop_size_max=class_pop_size_max,
                 load_data=loadData, random_state=randomState,
                 verbose=verbose)
-        sim_file, cls_file = sim()
+        sim_file, cls_file = sim.sim_labeled_dataset()
 
         for ind, class_std in enumerate(class_size_stds):
             class_std_str = class_size_stds_str[ind]

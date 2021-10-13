@@ -23,7 +23,7 @@ __author__ = "nicolas, amine"
 
 
 class SantaSim():
-    """docstring for santaSim."""
+    """docstring for santaSim class"""
 
     santaPath = "{}/santa.jar".format(
             os.path.dirname(os.path.realpath(__file__)))
@@ -76,7 +76,12 @@ class SantaSim():
         # 
         assert(self.classPopSizeMax_ >= self.classPopSizeMin_)
 
-    def __call__(self):
+    def sim_labeled_dataset(self):
+        """
+        Simulate a labled dataset containing one or more classes.
+        The function return the names of fasta and class files
+        """
+
         if self.loadData_ and os.path.isfile(self.finalFasta_) \
                 and os.path.isfile(self.finalClsFile_): 
             if self.verbose_:
@@ -103,12 +108,12 @@ class SantaSim():
 
             initOutput = os.path.join(self.outDir_,
                     self.outName_+"_init")
-            initFasta, initTree = self.santaSim(self.initSeqs_[0],
+            initFasta, initTree = self.run_santa(self.initSeqs_[0],
                     "cinit", initOutput, self.evoParams_,
                     set_seed=None)
 
             init_seq_col = SeqCollection.read_bio_file(initFasta)
-            init_seq_cls = self.generateClasses(initTree, 
+            init_seq_cls = self.generate_classes(initTree, 
                     self.nbClasses_)
 
             seq_names = []
@@ -160,7 +165,7 @@ class SantaSim():
 
         # Run Santasim for each ancestral sequence
         # to simulate nbClasses
-        simFiles = parallel(delayed(self.santaSim)(seq, 
+        simFiles = parallel(delayed(self.run_santa)(seq, 
             "c{}".format(i), output+str(i), self.evoParams_,
             set_pop_size=pop_size, set_seed=None) 
             for i, (seq, pop_size) in enumerate(zip(
@@ -181,15 +186,15 @@ class SantaSim():
 
         return self.finalFasta_, self.finalClsFile_
 
-    # Main function for executing santaSim
+    # Main function for executing SANTA
     @classmethod
-    def santaSim(cls, sequence, tag, output, evo_params, 
+    def run_santa(cls, sequence, tag, output, evo_params, 
             set_pop_size=None, set_seed=None):
 
         if set_pop_size:
             evo_params["populationSize"] = set_pop_size
  
-        simFasta, simTree, configFile = cls.writeSimXMLConfig(
+        simFasta, simTree, configFile = cls.write_santa_XML_config(
                 sequence, tag, output, **evo_params)
         seed_str = ""
         if set_seed:
@@ -202,7 +207,7 @@ class SantaSim():
 
     # Generate classes file from a tree file in newick format
     @classmethod
-    def generateClasses(cls, treeFile, nbClusters):
+    def generate_classes(cls, treeFile, nbClusters):
         class_list = defaultdict(list)
 
         with open(treeFile, 'r') as fh:
@@ -227,7 +232,7 @@ class SantaSim():
     # Change uncertain nucleotides from sequencing or 
     # consensus in databases
     @classmethod
-    def normaliseNucleotide(cls, sequence):
+    def normalise_nucleotides(cls, sequence):
         seq = list(sequence)
         for i in range(len(seq)):
             if not bool(re.match('^[ACGT]+$', str(seq[i]))):
@@ -258,9 +263,9 @@ class SantaSim():
         sequence = "".join(seq)
         return sequence
 
-    # Write XML configuration file for santaSim
+    # Write XML configuration file for SANATA
     @classmethod
-    def writeSimXMLConfig(
+    def write_santa_XML_config(
             cls, 
             sequence,
             tag,
@@ -313,7 +318,7 @@ class SantaSim():
             fasta_length.text = str(len(sequence.seq))
             fasta_sq = et.SubElement(fasta, "sequences")
             fasta_sq.text = str(
-                    cls.normaliseNucleotide(sequence.seq))
+                    cls.normalise_nucleotides(sequence.seq))
 
         #
         pop = et.SubElement(simulation, "population")
