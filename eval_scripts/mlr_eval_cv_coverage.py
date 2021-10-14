@@ -66,8 +66,10 @@ if __name__ == "__main__":
     fullKmers = config.getboolean("seq_rep", "full_kmers")
     lowVarThreshold = config.get("seq_rep", "low_var_threshold",
             fallback=None)
-    fragmentSize = config.getint("seq_rep", "fragment_size")
-    fragmentCount = config.getint("seq_rep", "fragment_count")
+    fragmentSize = config.getint("seq_rep", "fragment_size",
+            fallback=1000)
+    fragmentCount = config.getint("seq_rep", "fragment_count",
+            fallback=1000)
     # ........ main evaluation parameters ..............
     fragmentCovs = config.get("seq_rep", "fragment_cov") 
     # ..................................................
@@ -120,7 +122,7 @@ if __name__ == "__main__":
 
     if evalType not in ["CF", "FF"]:
         raise ValueError(
-                "evalType argument have to be one of CF or FF values")
+                "evalType argument have to be CF or FF value")
  
     # Check lowVarThreshold
     # #####################
@@ -175,15 +177,16 @@ if __name__ == "__main__":
     parallel = Parallel(n_jobs=n_mainJobs, prefer="processes",
             verbose=verbose)
 
-    for coverage in coverages:
+    for ind, coverage in enumerate(coverages):
+        coverage_str = coverages_str[ind]
         if verbose:
-            print("\nEvaluating coverage {}".format(coverage),
-                    flush=True)
+            print("\n{}. Evaluating coverage: {}".format(
+                ind+1, coverage_str), flush=True)
 
         # Construct prefix for output files
         ###################################
         tag_fg = "FSZ{}_FCV{}_FCL{}_".format(str(fragmentSize), 
-                str(coverage), str(fragmentCount))
+                coverage_str, str(fragmentCount))
 
         prefix_out = os.path.join(outdir, "{}_{}_K{}{}_{}".format(
             virus_name, evalType, tag_kf, klen, tag_fg))
@@ -229,7 +232,7 @@ if __name__ == "__main__":
 
         # Add the scores of current coverage to clf_scores
         for i, clf_name in enumerate(clf_names):
-            clf_scores[clf_name][str(coverage)] = mlr_scores[i]
+            clf_scores[clf_name][coverage_str] = mlr_scores[i]
  
     # Rearrange clf_scores into dict of mean and std dataframes
     scores_dfs = make_clf_score_dataframes(clf_scores,

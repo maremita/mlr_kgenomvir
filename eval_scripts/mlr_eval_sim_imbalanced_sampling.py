@@ -32,13 +32,14 @@ from mlr_kgenomvir.models.pytorch_mlr import MLR
 from sklearn.linear_model import LogisticRegression
 
 
-__author__ = ["amine", "nicolas"]
+__author__ = ["amine"]
 
 
 """
 The script evaluates the performance of different 
-regularized MLR models with function to kmer lengths for
-virus genome classification of a simulated population
+regularized MLR models with function to how is
+imbalanced the dataset for virus genome classification 
+of a simulated population
 """
 
 
@@ -67,9 +68,7 @@ if __name__ == "__main__":
     outdir = config.get("io", "outdir")
 
     # seq_rep
-    # ........ main evaluation parameters ..............
-    k_lenghts = config.get("seq_rep", "k")
-    # ..................................................
+    klen = config.getint("seq_rep", "k")
     fullKmers = config.getboolean("seq_rep", "full_kmers")
     lowVarThreshold = config.get("seq_rep", "low_var_threshold",
             fallback=None)
@@ -86,8 +85,9 @@ if __name__ == "__main__":
             fallback=200)
     class_size_mean = config.getint("seq_rep", "class_size_mean",
             fallback=50)
-    class_size_std = config.getfloat("seq_rep", "class_size_std",
-            fallback=None)
+    # ........ main evaluation parameters ..............
+    class_size_std_list = config.get("seq_rep", "class_size_std")
+    # ..................................................
 
     # evaluation
     evalType = config.get("evaluation", "eval_type") # CC, CF or FF
@@ -157,7 +157,7 @@ if __name__ == "__main__":
     class_pop_size_max = config.getint("simulation",
             "class_pop_size_max", fallback=100)
     class_pop_size_std = config.getfloat("simulation",
-            "class_pop_size_std", fallback=None)
+            "class_pop_size_std", fallback=0)
 
     evo_params = dict()
     evo_params["populationSize"] = config.getint("simulation", 
@@ -200,24 +200,8 @@ if __name__ == "__main__":
         # is an integer
         initseq = init_seq_size
 
-    # Sampling original dataset
-    ###########################
-    sampling_args = dict()
-    sample_classes = False
-
-    if bool(class_size_std):
-        sample_classes = True
-
-    sampling_args = {
-            'sample_classes':sample_classes,
-            'sample_class_size_min':class_size_min,
-            'sample_class_size_max':class_size_max,
-            'sample_class_size_mean':class_size_mean,
-            'sample_class_size_std':class_size_std
-            }
-
     # Check lowVarThreshold
-    #######################
+    # #####################
     if lowVarThreshold == "None":
         lowVarThreshold = None
     else:
@@ -264,10 +248,10 @@ if __name__ == "__main__":
     sim_dir = os.path.join(outdir,"simulations")
     makedirs(sim_dir, mode=0o700, exist_ok=True)
 
-    ## K lengths to evaluate
-    ########################
-    klen_list = str_to_list(k_lenghts, cast=int)
-    klen_list_str = [str(k) for k in klen_list]
+    ## Class size std to evaluate
+    #############################
+    class_size_stds = str_to_list(class_size_std_list, cast=float)
+    class_size_stds_str = [str(c) for c in class_size_stds]
 
     ## MLR initialization
     #####################
@@ -316,7 +300,7 @@ if __name__ == "__main__":
         # Simulate viral population based on input fasta
         ################################################
         sim_file, cls_file = sim.sim_labeled_dataset(
-                [initseq], 
+                [initseq],
                 evo_params,
                 sim_dir,
                 sim_name,
@@ -326,21 +310,21 @@ if __name__ == "__main__":
                 class_pop_size_std=class_pop_size_std,
                 class_pop_size_min=class_pop_size_min,
                 class_pop_size_max=class_pop_size_max,
-                load_data=loadData, 
+                load_data=loadData,
                 random_state=randomState,
                 verbose=verbose)
 
-        for ind, klen in enumerate(klen_list):
-            klen_str = klen_list_str[ind]
+        for ind, class_std in enumerate(class_size_stds):
+            class_std_str = class_size_stds_str[ind]
             if verbose:
-                print("\n{}. Evaluating K: {}".format(
-                    ind+1, klen_str), flush=True)
+                print("\n{}. Evaluating class size std {}\n".format(
+                    ind+1, class_std_str), flush=True)
 
             # Construct prefix for output files
             ###################################
             prefix_out = os.path.join(outdir, 
-                    "{}_{}_{}_K{}{}_{}".format(virus_name,
-                        evalType, sim_name, tag_kf, klen_str,
+                    "{}_{}_{}_K{}{}_CSTD{}_{}".format(virus_name,
+                        evalType, sim_name, tag_kf, klen, class_std,
                         tag_fg))
 
             ## Generate training and testing data
@@ -353,13 +337,17 @@ if __name__ == "__main__":
                     k=klen,
                     full_kmers=fullKmers,
                     low_var_threshold=lowVarThreshold,
+                    sample_classes=True,
+                    sample_class_size_min=class_size_min,
+                    sample_class_size_max=class_size_max,
+                    sample_class_size_mean=class_size_mean,
+                    sample_class_size_std=class_std,
                     n_splits=cv_folds,
                     test_size=testSize,
                     load_data=loadData,
                     save_data=saveData,
                     random_state=randomState,
                     verbose=verbose,
-                    **sampling_args,
                     **args_fg)
 
             cv_data = tt_data["data"]
@@ -370,12 +358,6 @@ if __name__ == "__main__":
             
             ## Train and compute performance of classifiers
             ###############################################
-            # mlr_scores is a list of dictionaries of scores
-            # each dict (returned by perform_mlr_cv) is a set of
-            # scores of a different regularized clf trained 
-            # with klen-computed data
-            #[{"score_1":[mean, std], "score_2":[mean, std],..},..]
-
             mlr_scores = parallel(delayed(perform_mlr_cv)(
                 clone(mlr), clf_name, clf_penalty, _lambda,
                 cv_data, prefix_out, metric=eval_metric,
@@ -386,30 +368,25 @@ if __name__ == "__main__":
                 for clf_name, clf_penalty in zip(clf_names,
                     clf_penalties))
 
-            # Add the scores of current klen to clf_scores
+            # Add the scores of current class_std to clf_scores
             for i, clf_name in enumerate(clf_names):
-                clf_scores[clf_name][klen_str] = mlr_scores[i]
+                clf_scores[clf_name][class_std_str] = mlr_scores[i]
 
         # Rearrange clf_scores into dict of mean and std dataframes
-        # {"clf_L1": {"mean": df, "std": df},..}
-        # dfs have the same rows and columns. 
-        # Rows correspond to the  main evaluation hyperparams:
-        #                    (coverage|lambda|k|learning_rate)
-        # Columns are score_names
         scores_dfs = make_clf_score_dataframes(clf_scores,
-                klen_list_str, score_names, _max_iter)
+                class_size_stds_str, score_names, _max_iter)
  
         sim_scores.append(scores_dfs)
 
         ## Save and Plot iteration results
         ##################################
         outFileSim = os.path.join(outdir,
-                "{}_{}_{}_K{}{}to{}_{}{}{}_A{}_KLENGTHS_{}_{}".\
-                        format(virus_name, evalType, sim_name, 
-                            tag_kf, klen_list_str[0], 
-                            klen_list_str[-1], tag_fg, mlr_name,
-                            str_lr, str_lambda,
-                            avrg_metric, eval_metric))
+                "{}_{}_{}_K{}{}_CSTD{}to{}_{}{}{}_A{}_CLASSSTD_"\
+                        "{}_{}".format(
+                    virus_name, evalType, sim_name,
+                    tag_kf, klen, class_size_stds_str[0],
+                    class_size_stds_str[-1], tag_fg, mlr_name,
+                    str_lr, str_lambda, avrg_metric, eval_metric))
 
         if saveResults:
             write_log(scores_dfs, config, outFileSim+".log")
@@ -417,8 +394,9 @@ if __name__ == "__main__":
                 dump(scores_dfs, fh)
 
         if plotResults:
-            plot_cv_figure(scores_dfs, score_names, klen_list_str,
-                    "K length", outFileSim)
+            plot_cv_figure(scores_dfs, score_names,
+                    class_size_stds_str, "Sampling class size STD",
+                    outFileSim)
 
     # Compute the mean of all scores per classifier
     # and by mean and std
@@ -427,10 +405,12 @@ if __name__ == "__main__":
     ## Save and Plot final results
     ##############################
     outFile = os.path.join(outdir,
-            "{}_{}_Sim_K{}{}to{}_{}{}{}_A{}_KLENGTHS_{}_{}".format(
-                virus_name, evalType, tag_kf, klen_list_str[0], 
-                klen_list_str[-1], tag_fg, mlr_name, str_lr,
-                str_lambda, avrg_metric, eval_metric))
+            "{}_{}_Sim_K{}{}_CSTD{}to{}_{}{}{}_A{}_CLASSSTD_{}_{}".\
+                    format(virus_name, evalType, 
+                        tag_kf, klen, class_size_stds_str[0], 
+                        class_size_stds_str[-1], tag_fg,
+                        mlr_name, str_lr, str_lambda,
+                        avrg_metric, eval_metric))
 
     if saveResults:
         write_log(sim_scores_dfs, config, outFile+".log")
@@ -438,8 +418,9 @@ if __name__ == "__main__":
             dump(sim_scores_dfs, fh)
 
     if plotResults:
-        plot_cv_figure(sim_scores_dfs, score_names, klen_list_str,
-                "K length", outFile)
+        plot_cv_figure(sim_scores_dfs, score_names,
+                class_size_stds_str, "Sampling class size STD",
+                outFile)
 
     if verbose:
         print("\nFin normale du programme {}".format(sys.argv[0]))

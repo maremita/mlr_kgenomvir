@@ -231,7 +231,6 @@ class SeqCollection(UserList):
             return self
 
         for i, label in enumerate(self.label_ind):
-
             nb_seqs = len(self.label_ind[label])
             the_limit = sizes[i]
 
@@ -244,7 +243,7 @@ class SeqCollection(UserList):
         return self[new_data_ind]
 
     def get_count_labels(self):
-        count = {label:len(self.label_ind[label])
+        count = {label: len(self.label_ind[label])
                 for label in self.label_ind}
 
         return count

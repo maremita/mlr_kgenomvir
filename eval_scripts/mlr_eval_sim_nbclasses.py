@@ -10,7 +10,7 @@ from mlr_kgenomvir.models.model_evaluation import plot_cv_figure
 from mlr_kgenomvir.utils import str_to_list
 from mlr_kgenomvir.utils import get_stats
 from mlr_kgenomvir.utils import write_log
-from mlr_kgenomvir.simulation.simulation import SantaSim
+from mlr_kgenomvir.simulation.santasim import SantaSim
 
 import random
 import sys
@@ -72,6 +72,21 @@ if __name__ == "__main__":
     fullKmers = config.getboolean("seq_rep", "full_kmers")
     lowVarThreshold = config.get("seq_rep", "low_var_threshold",
             fallback=None)
+    fragmentSize = config.getint("seq_rep", "fragment_size",
+            fallback=1000)
+    fragmentCount = config.getint("seq_rep", "fragment_count",
+            fallback=1000)
+    fragmentCov = config.getfloat("seq_rep", "fragment_cov",
+            fallback=2)
+    # Paramters for sampling dataset
+    class_size_min = config.getint("seq_rep", "class_size_min",
+            fallback=5)
+    class_size_max = config.getint("seq_rep", "class_size_max",
+            fallback=200)
+    class_size_mean = config.getint("seq_rep", "class_size_mean",
+            fallback=50)
+    class_size_std = config.getfloat("seq_rep", "class_size_std",
+            fallback=None)
 
     # evaluation
     evalType = config.get("evaluation", "eval_type") # CC, CF or FF
@@ -119,19 +134,7 @@ if __name__ == "__main__":
     randomState = config.getint("settings", "random_state",
             fallback=42)
 
-    if evalType in ["CC", "CF", "FF"]:
-        if evalType in ["CF", "FF"]:
-            try:
-                fragmentSize = config.getint("seq_rep",
-                        "fragment_size")
-                fragmentCount = config.getint("seq_rep", 
-                        "fragment_count")
-                fragmentCov = config.getfloat("seq_rep",
-                        "fragment_cov")
-
-            except configparser.NoOptionError:
-                raise configparser.NoOptionError()
-    else:
+    if evalType not in ["CC", "CF", "FF"]:
         raise ValueError(
                 "evalType argument have to be one of CC, CF or"+
                 " FF values")
@@ -143,10 +146,19 @@ if __name__ == "__main__":
             fallback=None)
     init_gen_count_fraction = config.getfloat("simulation",
             "init_gen_count_fraction", fallback=0.5)
+
     # ........ main evaluation parameters ..............
     nb_class_list = config.get("simulation", "nb_classes")
     # ..................................................
-    class_pop_size = config.getint("simulation", "class_pop_size")
+    class_pop_size = config.getint("simulation", 
+            "class_pop_size", fallback=25)
+    class_pop_size_min = config.getint("simulation",
+            "class_pop_size_min", fallback=50)
+    class_pop_size_max = config.getint("simulation",
+            "class_pop_size_max", fallback=100)
+    class_pop_size_std = config.getfloat("simulation",
+            "class_pop_size_std", fallback=None)
+
     evo_params = dict()
     evo_params["populationSize"] = config.getint("simulation", 
             "init_pop_size", fallback=100)
@@ -187,6 +199,22 @@ if __name__ == "__main__":
         # writeSimXMLConfig of SantaSim will check if initSeq
         # is an integer
         initseq = init_seq_size
+
+    # Sampling original dataset
+    ###########################
+    sampling_args = dict()
+    sample_classes = False
+
+    if bool(class_size_std):
+        sample_classes = True
+
+    sampling_args = {
+            'sample_classes':sample_classes,
+            'sample_class_size_min':class_size_min,
+            'sample_class_size_max':class_size_max,
+            'sample_class_size_mean':class_size_mean,
+            'sample_class_size_std':class_size_std
+            }
 
     # Check lowVarThreshold
     # #####################
@@ -269,6 +297,9 @@ if __name__ == "__main__":
     parallel = Parallel(n_jobs=n_mainJobs, prefer="processes", 
             verbose=verbose)
 
+    # SantaSim object for sequence simulation using SANTA
+    sim = SantaSim()
+
     # Collect score results of all simulation iterations in
     # sim_scores
     sim_scores = []
@@ -278,21 +309,32 @@ if __name__ == "__main__":
             print("\nEvaluating Simulation {}".format(iteration),
                     flush=True)
 
-        for class_nb in class_nbs:
+        for ind, class_nb in enumerate(class_nbs):
+            class_nb_str = class_nbs_str[ind]
             if verbose:
-                print("\nEvaluating class number {}".format(
-                    class_nb), flush=True)
+                print("\n{}. Evaluating class number: {}".format(
+                    ind+1, class_nb_str), flush=True)
 
             # Construct names for simulation and classes files
             ##################################################
-            sim_name = "Sim{}_CL{}".format(iteration, class_nb)
+            sim_name = "Sim{}_CL{}".format(iteration, class_nb_str)
 
             # Simulate viral population based on input fasta
             ################################################
-            sim = SantaSim([initseq], init_gen_count_fraction,
-                    nb_classes, class_pop_size, evo_params, sim_dir,
-                    sim_name, load_data=loadData, verbose=verbose)
-            sim_file, cls_file = sim()
+            sim_file, cls_file = sim.sim_labeled_dataset(
+                    [initseq],
+                    evo_params,
+                    sim_dir,
+                    sim_name,
+                    init_gen_count_frac=init_gen_count_fraction,
+                    nb_classes=class_nb,
+                    class_pop_size=class_pop_size,
+                    class_pop_size_std=class_pop_size_std,
+                    class_pop_size_min=class_pop_size_min,
+                    class_pop_size_max=class_pop_size_max,
+                    load_data=loadData,
+                    random_state=randomState,
+                    verbose=verbose)
 
             # Construct prefix for output files
             ###################################
@@ -316,6 +358,7 @@ if __name__ == "__main__":
                     save_data=saveData,
                     random_state=randomState,
                     verbose=verbose,
+                    **sampling_args,
                     **args_fg)
 
             cv_data = tt_data["data"]
@@ -338,7 +381,7 @@ if __name__ == "__main__":
 
             # Add the scores of current class_nb to clf_scores
             for i, clf_name in enumerate(clf_names):
-                clf_scores[clf_name][str(class_nb)] = mlr_scores[i]
+                clf_scores[clf_name][class_nb_str] = mlr_scores[i]
 
         # Rearrange clf_scores into dict of mean and std dataframes
         scores_dfs = make_clf_score_dataframes(clf_scores,
@@ -350,8 +393,8 @@ if __name__ == "__main__":
         ##################################
         outFileSim = os.path.join(outdir,
                 "{}_{}_Sim{}_CL{}to{}_K{}{}_{}{}{}_A{}_CLASSNBS_{}_{}".format(
-                    virus_name, evalType, iteration, class_nbs[0],
-                    class_nbs[-1], tag_kf, klen, tag_fg, mlr_name,
+                    virus_name, evalType, iteration, class_nbs_str[0],
+                    class_nbs_str[-1], tag_kf, klen, tag_fg, mlr_name,
                     str_lr, str_lambda, avrg_metric, eval_metric))
 
         if saveResults:
@@ -371,8 +414,8 @@ if __name__ == "__main__":
     ##############################
     outFile = os.path.join(outdir,
                 "{}_{}_Sim_CL{}to{}_K{}{}_{}{}{}_A{}_CLASSNBS_{}_{}".\
-                        format(virus_name, evalType, class_nbs[0], 
-                            class_nbs[-1], tag_kf, klen, tag_fg,
+                        format(virus_name, evalType, class_nbs_str[0],
+                            class_nbs_str[-1], tag_kf, klen, tag_fg,
                             mlr_name, str_lr, str_lambda,
                             avrg_metric, eval_metric))
 
