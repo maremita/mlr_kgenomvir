@@ -28,7 +28,9 @@ class SantaSim():
     santaPath = "{}/santa.jar".format(
             os.path.dirname(os.path.realpath(__file__)))
 
-    def __init__(self, 
+    @classmethod
+    def sim_labeled_dataset(
+            cls,
             init_seqs,
             evo_params,
             out_dir,
@@ -43,78 +45,77 @@ class SantaSim():
             random_state=None,
             verbose=0):
 
-        self.initSeqs_ = init_seqs
-        self.initGenCountFrac_ = init_gen_count_frac
-        self.nbClasses_ = nb_classes
-        self.classPopSize_ = class_pop_size
-        self.classPopSizeStd_ = class_pop_size_std
-        self.classPopSizeMax_ = class_pop_size_max
-        self.classPopSizeMin_ = class_pop_size_min
-        self.evoParams_ = copy.deepcopy(evo_params)
-        self.outDir_ = out_dir
-        self.outName_ = out_name
-        self.loadData_ = load_data
-        self.random_state_ = random_state
-        self.verbose_ = verbose
- 
-        self.finalFasta_ = os.path.join(self.outDir_, 
-                self.outName_+".fa")
-        self.finalClsFile_ = os.path.join(self.outDir_, 
-                self.outName_+".csv")
-
-
-        if not isinstance(self.initSeqs_, list):
-            raise TypeError(
-                    "initSeqs_ should be a list of seqRecords")
-
-        if len(self.initSeqs_) > 1:
-            # the number of initial sequences should match the number 
-            # of desired classes to generate unless if we want to 
-            # simulate the whole data from one initial sequence
-            assert(len(self.initSeqs_) == self.nbClasses_)
-
-        # 
-        assert(self.classPopSizeMax_ >= self.classPopSizeMin_)
-
-    def sim_labeled_dataset(self):
         """
         Simulate a labled dataset containing one or more classes.
         The function return the names of fasta and class files
         """
 
-        if self.loadData_ and os.path.isfile(self.finalFasta_) \
-                and os.path.isfile(self.finalClsFile_): 
-            if self.verbose_:
+        initSeqs_ = init_seqs
+        initGenCountFrac_ = init_gen_count_frac
+        nbClasses_ = nb_classes
+        classPopSize_ = class_pop_size
+        classPopSizeStd_ = class_pop_size_std
+        classPopSizeMax_ = class_pop_size_max
+        classPopSizeMin_ = class_pop_size_min
+        evoParams_ = copy.deepcopy(evo_params)
+        outDir_ = out_dir
+        outName_ = out_name
+        loadData_ = load_data
+        random_state_ = random_state
+        verbose_ = verbose
+ 
+        finalFasta_ = os.path.join(outDir_, 
+                outName_+".fa")
+        finalClsFile_ = os.path.join(outDir_, 
+                outName_+".csv")
+
+        if not isinstance(initSeqs_, list):
+            raise TypeError(
+                    "initSeqs_ should be a list of seqRecords")
+
+        if len(initSeqs_) > 1:
+            # the number of initial sequences should match the number 
+            # of desired classes to generate unless if we want to 
+            # simulate the whole data from one initial sequence
+            assert(len(initSeqs_) == nbClasses_)
+
+        # 
+        assert(classPopSizeMax_ >= classPopSizeMin_)
+
+
+        if loadData_ and os.path.isfile(finalFasta_) \
+                and os.path.isfile(finalClsFile_): 
+            if verbose_:
                 print("\nLoading simulated sequences from files",
                         flush=True)
             # Don't run simulation and load
             # previous simulated data
-            return self.finalFasta_, self.finalClsFile_
+            return finalFasta_, finalClsFile_
 
         # Flag to sample each class using a class-size-based
         # normal distribution
-        if isinstance(self.classPopSizeStd_, (int, float)):
+        if isinstance(classPopSizeStd_, (int, float)):
             sample_classes = True
         else:
             sample_classes = False
 
         # If one sequence is given, we simulate and pick
         # nbClasses sequences to be ancestral sequences
-        if len(self.initSeqs_) == 1:
+        if len(initSeqs_) == 1:
             # initialize generation count for initial simulation
-            genCount = self.evoParams_["generationCount"]
-            self.evoParams_["generationCount"] =\
-                    int(genCount * self.initGenCountFrac_)
+            genCount = evoParams_["generationCount"]
+            evoParams_["generationCount"] =\
+                    int(genCount * initGenCountFrac_)
 
-            initOutput = os.path.join(self.outDir_,
-                    self.outName_+"_init")
-            initFasta, initTree = self.run_santa(self.initSeqs_[0],
-                    "cinit", initOutput, self.evoParams_,
+            initOutput = os.path.join(outDir_,
+                    outName_+"_init")
+            initFasta, initTree = cls.run_santa(initSeqs_[0],
+                    "cinit", initOutput, evoParams_,
                     set_seed=None)
 
             init_seq_col = SeqCollection.read_bio_file(initFasta)
-            init_seq_cls = self.generate_classes(initTree, 
-                    self.nbClasses_)
+            init_seq_cls = cls.generate_classes(initTree, 
+                    nbClasses_)
 
             seq_names = []
             ancestral_seqs = []
@@ -126,14 +127,14 @@ class SantaSim():
                     ancestral_seqs.append(seqRec)
 
             # Set generation count for subsequent simulation
-            self.evoParams_["generationCount"] =\
-                    int(genCount * (1 - self.initGenCountFrac_))
+            evoParams_["generationCount"] =\
+                    int(genCount * (1 - initGenCountFrac_))
 
         # If several sequences are given, each sequence
         # is considered as ancestral sequence for it class.
         # Also we use the whole generation count 
         else:
-            ancestral_seqs = self.initSeqs_
+            ancestral_seqs = initSeqs_
 
         if sample_classes:
             # Random Sampling of class sizes to create
@@ -141,32 +142,32 @@ class SantaSim():
             # Choosing class sizes is random and follows a normal
             # distribution
             #
-            min_ = self.classPopSizeMin_
-            max_ = self.classPopSizeMax_
+            min_ = classPopSizeMin_
+            max_ = classPopSizeMax_
             lim_fun = lambda e: min_ if e < min_ else\
                     (max_ if (e > max_) else e)
             #
             pop_sizes = list(map(lim_fun, norm.rvs(
-                loc=self.classPopSize_, 
-                scale=self.classPopSizeStd_, 
-                size=self.nbClasses_).astype(np.int)))
+                loc=classPopSize_, 
+                scale=classPopSizeStd_, 
+                size=nbClasses_).astype(np.int)))
 
         else:
             # All classes have the same size
-            pop_sizes = [self.classPopSize_]*self.nbClasses_
+            pop_sizes = [classPopSize_]*nbClasses_
 
-        if self.verbose_:
+        if verbose_:
             print("\nSimulating dataset with class sizes:"\
                     "\n{}\n".format(pop_sizes), flush=True)
         #
-        parallel = Parallel(n_jobs=self.nbClasses_,
-                prefer="processes", verbose=self.verbose_)
-        output = os.path.join(self.outDir_, self.outName_+"_")
+        parallel = Parallel(n_jobs=nbClasses_,
+                prefer="processes", verbose=verbose_)
+        output = os.path.join(outDir_, outName_+"_")
 
         # Run Santasim for each ancestral sequence
         # to simulate nbClasses
-        simFiles = parallel(delayed(self.run_santa)(seq, 
-            "c{}".format(i), output+str(i), self.evoParams_,
+        simFiles = parallel(delayed(cls.run_santa)(seq, 
+            "c{}".format(i), output+str(i), evoParams_,
             set_pop_size=pop_size, set_seed=None) 
             for i, (seq, pop_size) in enumerate(zip(
                 ancestral_seqs, pop_sizes)))
@@ -182,9 +183,9 @@ class SantaSim():
         sim_col = SeqCollection(labeled_seqs)
 
         # Write fasta and label files
-        sim_col.write(self.finalFasta_, self.finalClsFile_)
+        sim_col.write(finalFasta_, finalClsFile_)
 
-        return self.finalFasta_, self.finalClsFile_
+        return finalFasta_, finalClsFile_
 
     # Main function for executing SANTA
     @classmethod

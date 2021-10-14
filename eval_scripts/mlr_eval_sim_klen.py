@@ -10,7 +10,7 @@ from mlr_kgenomvir.models.model_evaluation import plot_cv_figure
 from mlr_kgenomvir.utils import str_to_list
 from mlr_kgenomvir.utils import get_stats
 from mlr_kgenomvir.utils import write_log
-from mlr_kgenomvir.simulation.simulation import SantaSim
+from mlr_kgenomvir.simulation.santasim import SantaSim
 
 import random
 import sys
@@ -297,6 +297,9 @@ if __name__ == "__main__":
     parallel = Parallel(n_jobs=n_mainJobs, prefer="processes", 
             verbose=verbose)
 
+    # SantaSim object for sequence simulation using SANTA
+    sim = SantaSim()
+
     # Collect score results of all simulation iterations in
     # sim_scores
     sim_scores = []
@@ -312,16 +315,20 @@ if __name__ == "__main__":
 
         # Simulate viral population based on input fasta
         ################################################
-        sim = SantaSim([initseq], evo_params, sim_dir, sim_name,
+        sim_file, cls_file = sim.sim_labeled_dataset(
+                [initseq], 
+                evo_params,
+                sim_dir,
+                sim_name,
                 init_gen_count_frac=init_gen_count_fraction,
                 nb_classes=nb_classes,
                 class_pop_size=class_pop_size,
                 class_pop_size_std=class_pop_size_std,
                 class_pop_size_min=class_pop_size_min,
                 class_pop_size_max=class_pop_size_max,
-                load_data=loadData, random_state=randomState,
+                load_data=loadData, 
+                random_state=randomState,
                 verbose=verbose)
-        sim_file, cls_file = sim.sim_labeled_dataset()
 
         for ind, klen in enumerate(klen_list):
             klen_str = klen_list_str[ind]
