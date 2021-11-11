@@ -6,9 +6,21 @@ import importlib
 import numpy as np
 import scipy
 import scipy.sparse as sp
+import configparser
 
 
 __author__ = "amine"
+
+
+def read_config_file(conf_file):
+
+    cfg = configparser.ConfigParser(
+            interpolation=configparser.ExtendedInterpolation())
+
+    with open(conf_file, "r") as cf:
+        cfg.read_file(cf)
+
+    return cfg
 
 
 def load_Xy_data(xfile, yfile):
