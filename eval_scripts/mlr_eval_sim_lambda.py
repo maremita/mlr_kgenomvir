@@ -59,8 +59,8 @@ if __name__ == "__main__":
     with open(config_file, "r") as cf:
         config.read_file(cf)
 
-    # virus
-    virus_name = config.get("virus", "virus_code")
+    # job code
+    job_code = config.get("job", "job_code")
 
     # io
     seq_file = config.get("io", "seq_file")
@@ -252,7 +252,7 @@ if __name__ == "__main__":
 
     # OutDir folder
     ###############
-    outdir = os.path.join(outdir,"{}/{}".format(virus_name,
+    outdir = os.path.join(outdir,"{}/{}".format(job_code,
         evalType))
     makedirs(outdir, mode=0o700, exist_ok=True)
 
@@ -331,7 +331,7 @@ if __name__ == "__main__":
         # Construct prefix for output files
         ###################################
         prefix_out = os.path.join(outdir,
-                "{}_{}_{}_K{}{}_{}".format(virus_name, 
+                "{}_{}_{}_K{}{}_{}".format(job_code, 
                     evalType, sim_name, tag_kf, klen, tag_fg))
 
         ## Generate training and testing data
@@ -386,7 +386,7 @@ if __name__ == "__main__":
         ##################################
         outFileSim = os.path.join(outdir, 
                 "{}_{}_{}_K{}{}_{}{}{}_A{}to{}_LAMBDAS_{}_{}".\
-                        format(virus_name, evalType, sim_name,
+                        format(job_code, evalType, sim_name,
                             tag_kf, klen, tag_fg, mlr_name, str_lr,
                             lambdas_str[0], lambdas_str[-1],
                             avrg_metric, eval_metric))
@@ -408,7 +408,7 @@ if __name__ == "__main__":
     ##############################
     outFile = os.path.join(outdir,
             "{}_{}_Sim_K{}{}_{}{}{}_A{}to{}_LAMBDAS_{}_{}".format(
-                virus_name, evalType, tag_kf, klen, tag_fg,
+                job_code, evalType, tag_kf, klen, tag_fg,
                 mlr_name, str_lr, lambdas_str[0], lambdas_str[-1],
                 avrg_metric, eval_metric))
 

@@ -59,8 +59,8 @@ if __name__ == "__main__":
     with open(config_file, "r") as cf:
         config.read_file(cf)
 
-    # virus
-    virus_name = config.get("virus", "virus_code")
+    # job code
+    job_code = config.get("job", "job_code")
 
     # io
     seq_file = config.get("io", "seq_file", fallback=None)
@@ -256,7 +256,7 @@ if __name__ == "__main__":
 
     # OutDir folder
     ###############
-    outdir = os.path.join(outdir,"{}/{}".format(virus_name, 
+    outdir = os.path.join(outdir,"{}/{}".format(job_code, 
         evalType))
     makedirs(outdir, mode=0o700, exist_ok=True)
 
@@ -371,7 +371,7 @@ if __name__ == "__main__":
             # Construct prefix for output files
             ###################################
             prefix_out = os.path.join(outdir, 
-                    "{}_{}_{}_K{}{}_{}".format(virus_name,
+                    "{}_{}_{}_K{}{}_{}".format(job_code,
                         evalType, sim_name, tag_kf, klen, tag_fg))
 
             ## Generate training and testing data
@@ -425,7 +425,7 @@ if __name__ == "__main__":
         ##################################
         outFileSim = os.path.join(outdir,
                 "{}_{}_Sim{}_EV{}to{}_K{}{}_{}{}{}_A{}_{}_{}_{}".\
-                        format(virus_name, evalType, iteration,
+                        format(job_code, evalType, iteration,
                             evo_values_str[0], evo_values_str[-1],
                             tag_kf, klen, tag_fg, mlr_name, str_lr,
                             str_lambda, evo_to_assess, avrg_metric, 
@@ -448,7 +448,7 @@ if __name__ == "__main__":
     ##############################
     outFile = os.path.join(outdir,
                 "{}_{}_Sim_EV{}to{}_K{}{}_{}{}{}_A{}_{}_{}_{}".format(
-                    virus_name, evalType, evo_values_str[0],
+                    job_code, evalType, evo_values_str[0],
                     evo_values_str[-1], tag_kf, klen, tag_fg,
                     mlr_name, str_lr, str_lambda, evo_to_assess,
                     avrg_metric, eval_metric))
