@@ -250,16 +250,15 @@ if __name__ == "__main__":
                 else str(_learning_rate)
         str_lr = "_LR"+str_lr
 
-    # OutDir folder
-    ###############
-    outdir = os.path.join(outdir,"{}/{}".format(job_code,
-        evalType))
-    makedirs(outdir, mode=0o700, exist_ok=True)
-
     # SimDir folder
     ###############
-    sim_dir = os.path.join(outdir,"simulations")
+    sim_dir = os.path.join(outdir,"sim_data")
     makedirs(sim_dir, mode=0o700, exist_ok=True)
+
+    # OutDir folder
+    ###############
+    outdir = os.path.join(outdir,"{}".format(evalType))
+    makedirs(outdir, mode=0o700, exist_ok=True)
 
     ## Lambda values to evaluate
     ############################

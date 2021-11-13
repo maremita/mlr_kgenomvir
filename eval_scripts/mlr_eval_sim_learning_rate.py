@@ -245,16 +245,15 @@ if __name__ == "__main__":
     str_lambda = format(_lambda, '.0e') if _lambda not in list(
             range(0, 10)) else str(_lambda)
 
-    # OutDir folder
-    ###############
-    outdir = os.path.join(outdir,"{}/{}".format(job_code,
-        evalType))
-    makedirs(outdir, mode=0o700, exist_ok=True)
-
     # SimDir folder
     ###############
-    sim_dir = os.path.join(outdir,"simulations")
+    sim_dir = os.path.join(outdir,"sim_data")
     makedirs(sim_dir, mode=0o700, exist_ok=True)
+
+    # OutDir folder
+    ###############
+    outdir = os.path.join(outdir,"{}".format(evalType))
+    makedirs(outdir, mode=0o700, exist_ok=True)
 
     ## Learning rate values to evaluate
     ###################################

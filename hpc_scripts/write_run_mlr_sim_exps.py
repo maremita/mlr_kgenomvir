@@ -8,7 +8,7 @@ import os.path
 from os import makedirs
 from itertools import product
 from datetime import datetime
-
+import argparse
 
 __author__ = "amine"
 
@@ -22,9 +22,10 @@ on the performance and behavior of MLR models
 def main(args):
 
     # Get config values from ini files
-    slurm_config = read_config_file(args[1])
-    job_config = read_config_file(args[2])
-    exp_type = args[3]
+    slurm_config = read_config_file(args.slurm_config)
+    job_config = read_config_file(args.job_config)
+    job_type = args.job_type
+    job_name = args.job_name
 
     account = slurm_config.get("user", "account")
     mail = slurm_config.get("user", "mail_user")
@@ -37,160 +38,230 @@ def main(args):
     output_folder = slurm_config.get("io", "output_folder")
 
     # Get or set Job name
-    job_name = args[4]
 
-    if job_name:
-        str_time = job_name
-        scores_from_file = "True"
-    else:
+    if not job_name:
         now = datetime.now()
-        str_time = now.strftime("%m%d%H%M")
-        scores_from_file = "False"
+        str_time = now.strftime("%m%d")
+        job_name = "MLR"+str_time
 
-    print("Runing {} experiments\n".format(str_time))
+    print("Runing {} experiments\n".format(job_name))
 
-    # 
-    k_list = [4, 9]
+    #
+    k_list = ["4", "9"]
     evaluations = ["CC", "CF", "FF"]
     penalties = ["none", "l2", "l1"]
-    frgt_list = [250, 500]
+    frgt_list = ["250", "500"]
 
     # coverage
-    if exp_type == "cov":
+    if job_type == "coverage":
         program = "mlr_eval_sim_coverage.py"
-        exp_code = "mlr_coverages"
+        exp_code = "coverage"
         exp_mini = "C"
-        job_config.set("seq_rep", "fragment_cov", "0.1, 1, 2, 10")
+        #
+        exp_section = "seq_rep"
+        exp_key = "fragment_cov"
+        exp_values = ["0.1", "1", "2", "10"] 
 
     # mutation
-    elif exp_type == "mut":
+    elif job_type == "mutation":
         program = "mlr_eval_sim_evoparams.py"
-        exp_code = "mlr_mutation"
+        exp_code = "mutation"
         exp_mini = "M"
-        job_config.set("simulation", "mutation_rate", "0.0001, 0.001, 0.01, 0.1")
+        #
+        exp_section = "simulation"
+        exp_key = "mutation_rate"
+        exp_values = ["0.0001", "0.001", "0.01", "0.1"] 
 
     # indel
-    elif exp_type == "ind":
+    elif job_type == "indel":
         program = "mlr_eval_sim_evoparams.py"
-        exp_code = "mlr_indel"
+        exp_code = "indel"
         exp_mini = "I"
-        job_config.set("simulation", "indel_prob", "0.0001, 0.001, 0.01, 0.1")
+        #
+        exp_section = "simulation"
+        exp_key = "indel_prob"
+        exp_values = ["0.0001", "0.001", "0.01", "0.1"] 
 
     # recombination
-    elif exp_type == "rec":
+    elif job_type == "recomb":
         program = "mlr_eval_sim_evoparams.py"
-        exp_code = "mlr_recomb"
+        exp_code = "recomb"
         exp_mini = "R"
         job_config.set("simulation", "rep_dual_infection", "0.01")
-        job_config.set("simulation", "rep_recombination", "0.0001, 0.001, 0.01, 0.1")
+        #
+        exp_section = "simulation"
+        exp_key = "rep_recombination"
+        exp_values = ["0.0001", "0.001", "0.01", "0.1"] 
 
     # imbalanced dataset
-    elif exp_type == "dat":
+    elif job_type == "imbdata":
         program = "mlr_eval_sim_imbalanced_dataset.py"
-        exp_code = "mlr_imbdata"
+        exp_code = "imbdata"
         exp_mini = "D"
-        job_config.set("simulation", "class_pop_size_std", "0, 5, 10, 50")
+        #
+        exp_section = "simulation"
+        exp_key = "class_pop_size_std"
+        exp_values = ["0", "5", "10", "50"] 
 
     # imbalanced sampling
-    elif exp_type == "samp":
+    elif job_type == "imbsamp":
         program = "mlr_eval_sim_imbalanced_sampling.py"
-        exp_code = "mlr_imbsamp"
+        exp_code = "imbsamp"
         exp_mini = "S"
-        job_config.set("seq_rep", "class_size_std", "0, 5, 10, 50")
+        #
+        exp_section = "seq_rep"
+        exp_key = "class_size_std"
+        exp_values = ["0", "5", "10", "50"] 
 
     # k lengths 
-    elif exp_type == "klen":        
-        k_list = ["4, 5, 6, 7, 8, 9, 10"]
-        #k_list = [4, 5, 6, 7, 8, 9, 10]
+    elif job_type == "klen":        
         program = "mlr_eval_sim_klen.py"
-        exp_code = "mlr_klens"
+        exp_code = "klen"
         exp_mini = "K"
-        #job_config.set("seq_rep", "k", k_list[0])
+        #
+        exp_section = "seq_rep"
+        exp_key = "k"
+        exp_values = ["4", "5", "6", "7", "8", "9", "10"]
+        k_list = ["0"] # not important here
 
     # Lambda
-    elif exp_type == "lambda":
+    elif job_type == "lambda":
         program = "mlr_eval_sim_lambda.py"
-        exp_code = "mlr_lambdas"
+        exp_code = "lambda"
         exp_mini = "A"
-        job_config.set("classifier", "lambda", "1e-3, 1e-1, 1, 1e1, 1e2")
+        #
+        exp_section = "classifier"
+        exp_key = "lambda"
+        exp_values = ["1e-3", "1e-1", "1", "1e1", "1e2"] 
 
     # Learning rate
-    elif exp_type == "lr":
+    elif job_type == "lr":
         program = "mlr_eval_sim_learning_rate.py"
-        exp_code = "mlr_learning_rates"
+        exp_code = "lr"
         exp_mini = "L"
-        job_config.set("classifier", "learning_rate", "1e-5, 1e-3, 1e-1")
+        #
+        exp_section = "classifier"
+        exp_key = "learning_rate"
+        exp_values = ["1e-5", "1e-3", "1e-1"] 
 
     # Low variance threshold
-    elif exp_type == "lowv":
+    elif job_type == "lowvar":
         program = "mlr_eval_sim_lowVar.py"
-        exp_code = "mlr_lowvars"
+        exp_code = "lowvar"
         exp_mini = "V"
-        job_config.set("seq_rep", "low_var_threshold", "0.01, 0.1, 0.3, 0.5")
+        #
+        exp_section = "seq_rep"
+        exp_key = "low_var_threshold"
+        exp_values = ["0.01", "0.1", "0.3", "0.5"] 
 
     # number of classes
-    elif exp_type == "nbc":
+    elif job_type == "nbclass":
         program = "mlr_eval_sim_nbclasses.py"
-        exp_code = "mlr_nbclasses"
+        exp_code = "nbclass"
         exp_mini = "N"
-        job_config.set("simulation", "nb_classes", "2, 5, 10, 20")
+        #
+        exp_section = "simulation"
+        exp_key = "nb_classes"
+        exp_values = ["2", "5", "10", "20"] 
 
+    else:
+        raise ValueError("job_type should be one of these values:\n\n"\
+                "[coverage | mutation | indel | recomb | imbdata |\n "\
+                "imbsamp | klen | lambda | lr | lowvar | nbclass]\n")
+
+
+    job_config.set("job", "job_code", exp_mini)
 
     # Output folders
     # ###############
-    #job_dir = "jobs_folder/{}/".format(exp_code)
-    job_dir = os.path.join(output_folder, "jobs_folder", exp_code)
-    makedirs(job_dir, mode=0o700, exist_ok=True)
-    s_error = os.path.join(job_dir, "%j.err")
-    s_output = os.path.join(job_dir, "%j.out")
-
-    #config_dir = "config_folder/{}/".format(exp_code)
-    config_dir = os.path.join(output_folder, "config_folder", exp_code)
-    makedirs(config_dir, mode=0o700, exist_ok=True)
-
-    job_config.set("job", "job_code", exp_code)
+ 
+    # Main output folder
+    output_folder = os.path.join(output_folder, exp_code, job_name)
+    makedirs(output_folder, mode=0o700, exist_ok=True)
     job_config.set("io", "outdir", output_folder)
 
+    # Job log folder
+    log_dir = os.path.join(output_folder, "job_logs")
+    makedirs(log_dir, mode=0o700, exist_ok=True)
+
+    s_error = os.path.join(log_dir, "%j.err")
+    s_output = os.path.join(log_dir, "%j.out")
+
+    #config_dir = "config_folder/{}/".format(exp_code)
+    config_dir = os.path.join(output_folder, "job_confs")
+    makedirs(config_dir, mode=0o700, exist_ok=True)
+
+    # Simulated data folder will be created by the main 
+    # eval script in "output_folder". So CC, CF and CF 
+    # evaluations will use the same simulated data if 
+    # load_data flag is set to True in config file, otherwise
+    # new data are generated for new executions and previous data
+    # will be lost
+
+    #
     for eval_type in evaluations:
         if eval_type in ["CF", "FF"]:
             fgt_sizes = frgt_list
         else:
-            fgt_sizes = [0] # not important
+            fgt_sizes = [0] # not important here
 
         for frgt_size, k, pen in product(fgt_sizes, k_list, penalties):
-            exp_name = "{}_{}_{}_{}_{}".format(k, eval_type, frgt_size, pen)
+            for exp_value in exp_values:
+                #
+                if exp_code == "klen":
+                    k = exp_value
+                else:
+                    job_config.set('seq_rep', 'k', str(k))
+                #
+                exp_name = "{}{}_k{}_{}{}_{}".format(
+                        exp_mini,
+                        exp_value,
+                        k,
+                        eval_type,
+                        frgt_size,
+                        pen)
 
-            # Update config parser
-            job_config.set('evaluation', 'eval_type', eval_type) 
-            job_config.set('seq_rep', 'k', k) 
-            job_config.set('seq_rep', 'fragment_size', frgt_size) 
-            job_config.set('classifier', 'penalty', penalties)
+                # Update config parser
+                # set the the value of the parameter to evaluate
+                job_config.set(exp_section, exp_key, str(exp_value))
+                job_config.set('evaluation', 'eval_type', eval_type)
+                job_config.set('seq_rep', 'fragment_size', str(frgt_size))
+                job_config.set('classifier', 'penalty', pen)
 
-            # write it on a file
-            config_file = os.path.join(config_dir, "{}_{}.ini"\
-                    "".format(exp_name, str_time))
+                # write it on a file
+                config_file = os.path.join(config_dir, "{}_{}.ini"\
+                        "".format(exp_name, job_name))
 
-            with open (config_file, "wb") as fh:
-                job_config.write(config_file)
+                with open (config_file, "w") as fh:
+                    job_config.write(fh)
 
-            # submit job with this config file
-            cmd = "sbatch --account={} --mail-user={} --cpu-per-task={} "\
-                    "--job-name={} --time={} --export=PROGRAM={},CONF_file={} "\
-                    "--mem={} --gres={} --error={} --output={} submit_mlr_exp.sh".format(
-                            account,
-                            mail,
-                            cpu_task,
-                            exp_name, 
-                            time,
-                            program, config_file, 
-                            mem,
-                            gres, 
-                            s_error,
-                            s_output)
-            print(cmd)
-            #os.system(cmd)
-
+                # submit job with this config file
+                cmd = "sbatch --account={} --mail-user={} --cpu-per-task={} "\
+                        "--job-name={} --time={} --export=PROGRAM={},CONF_file={} "\
+                        "--mem={} --gres={} --error={} --output={} submit_mlr_exp.sh".format(
+                                account,
+                                mail,
+                                cpu_task,
+                                exp_name, 
+                                time,
+                                program, config_file, 
+                                mem,
+                                gres, 
+                                s_error,
+                                s_output)
+                print(cmd, end="\n\n")
+                #os.system(cmd)
 
 if __name__ == '__main__':
-    main(sys.argv)
+
+    parser = argparse.ArgumentParser(description='Script to write and run evaluation scripts')
+
+    parser.add_argument('-s', '--slurm-config', type=str, required=True)
+    parser.add_argument('-c', '--job-config', type=str, required=True)
+    parser.add_argument('-t', '--job-type', type=str, required=True)
+    parser.add_argument('-n', '--job-name', type=str, required=False)
+
+    args = parser.parse_args()
+
+    main(args)
 
