@@ -1,8 +1,5 @@
 #!/usr/bin/env python
 
-from mlr_kgenomvir.utils import read_config_file
-from mlr_kgenomvir.utils import str_to_list
-
 import sys
 import os
 import os.path
@@ -10,6 +7,8 @@ from os import makedirs
 from itertools import product
 from datetime import datetime
 import argparse
+import configparser
+
 
 __author__ = "amine"
 
@@ -228,6 +227,23 @@ def main(args):
                                 s_output)
                 print(cmd, end="\n\n")
                 #os.system(cmd)
+
+
+def read_config_file(conf_file):
+
+    cfg = configparser.ConfigParser(
+            interpolation=configparser.ExtendedInterpolation())
+
+    with open(conf_file, "r") as cf:
+        cfg.read_file(cf)
+
+    return cfg
+
+def str_to_list(chaine, sep=",", cast=None):
+    c = lambda x: x
+    if cast: c = cast
+
+    return [c(i.strip()) for i in chaine.split(sep)]
 
 if __name__ == '__main__':
 
