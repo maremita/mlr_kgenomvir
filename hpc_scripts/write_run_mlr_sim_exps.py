@@ -212,7 +212,7 @@ def main(args):
                     job_config.write(fh)
 
                 # submit job with this config file
-                cmd = "sbatch --account={} --mail-user={} --cpu-per-task={} "\
+                cmd = "sbatch --account={} --mail-user={} --cpus-per-task={} "\
                         "--job-name={} --time={} --export=PROGRAM={},CONF_file={} "\
                         "--mem={} --gres={} --error={} --output={} submit_mlr_exp.sh".format(
                                 account,
@@ -226,7 +226,7 @@ def main(args):
                                 s_error,
                                 s_output)
                 print(cmd, end="\n\n")
-                #os.system(cmd)
+                os.system(cmd)
 
 
 def read_config_file(conf_file):
