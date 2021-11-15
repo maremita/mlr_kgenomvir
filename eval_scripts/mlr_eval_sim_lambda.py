@@ -63,7 +63,7 @@ if __name__ == "__main__":
     job_code = config.get("job", "job_code")
 
     # io
-    seq_file = config.get("io", "seq_file")
+    seq_file = config.get("io", "seq_file", fallback=None)
     outdir = config.get("io", "outdir")
 
     # seq_rep
