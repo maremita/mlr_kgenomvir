@@ -198,6 +198,16 @@ def main(args):
 
     sim_iterations = list(range(sim_iter_start, sim_iter_end))
 
+    # gres (Generic RESources)
+    # Options: cpu or gpu:1 (beluga) or gpu:v100l:1 (cedar) etc.
+    set_gres = ""
+    if "gpu" in gres:
+        set_gres = "--gres={} ".format(gres)
+        job_config.set('classifier', 'device', "cuda")
+
+    else:
+        job_config.set('classifier', 'device', "cpu")
+
     #
     for eval_type in eval_types:
         if eval_type in ["CF", "FF"]:
@@ -243,7 +253,7 @@ def main(args):
                 # submit job with this config file
                 cmd = "sbatch --account={} --mail-user={} --cpus-per-task={} "\
                         "--job-name={} --time={} --export=PROGRAM={},CONF_file={} "\
-                        "--mem={} --gres={} --error={} --output={} submit_mlr_exp.sh".format(
+                        "--mem={} {}--error={} --output={} submit_mlr_exp.sh".format(
                                 account,
                                 mail,
                                 cpu_task,
@@ -251,11 +261,11 @@ def main(args):
                                 time,
                                 program, config_file, 
                                 mem,
-                                gres, 
+                                set_gres, 
                                 s_error,
                                 s_output)
                 print(cmd, end="\n\n")
-                os.system(cmd)
+                #os.system(cmd)
 
 
 def read_config_file(conf_file):
