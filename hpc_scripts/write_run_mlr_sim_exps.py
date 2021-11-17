@@ -44,10 +44,18 @@ def main(args):
     print("Runing {} experiments\n".format(job_name))
 
     #
-    k_list = str_to_list(job_config.get("distr_evals", "k_list"), cast=str)
-    eval_types = str_to_list(job_config.get("distr_evals", "eval_types"), cast=str)
-    penalties = str_to_list(job_config.get("distr_evals", "penalties"), cast=str)
-    fragment_sizes = str_to_list(job_config.get("distr_evals", "fragment_sizes"), cast=str)
+    k_list = str_to_list(
+            job_config.get("distr_evals", "k_list"), cast=str)
+    eval_types = str_to_list(
+            job_config.get("distr_evals", "eval_types"), cast=str)
+    penalties = str_to_list(
+            job_config.get("distr_evals", "penalties"), cast=str)
+    fragment_sizes = str_to_list(
+            job_config.get("distr_evals", "fragment_sizes"),
+            cast=str)
+    iter_bounds = str_to_list(
+            job_config.get("distr_evals", "sim_iterations"),
+            cast=int)
 
     # coverages
     if exp_code == "coverages":
@@ -141,11 +149,13 @@ def main(args):
         exp_key = "nb_classes"
 
     else:
-        raise ValueError("job_type should be one of these values:\n\n"\
+        raise ValueError(
+                "job_type should be one of these values:\n\n"\
                 "[coverages | mutations | indels | recombs | imbdata |\n "\
                 "imbsamp | klens | lambdas | lrs | lowvars | nbclasses]\n")
 
-    exp_values = str_to_list(job_config.get("distr_evals", exp_code), cast=str)
+    exp_values = str_to_list(
+            job_config.get("distr_evals", exp_code), cast=str)
     job_config.set("job", "job_code", exp_mini)
 
     # Output folders
@@ -174,6 +184,20 @@ def main(args):
     # new data are generated for new executions and previous data
     # will be lost
 
+    # Set sim iteration bounderies (useful when simulated
+    # data are deterministic) 
+    if len(iter_bounds) == 2:
+        # Config ex: iterations = 1, 10
+        sim_iter_start = iter_bounds[0]
+        sim_iter_end = iter_bounds[1] + 1
+
+    elif len(iter_bounds) == 1:
+        # Config ex: iterations = 5
+        sim_iter_start = 1
+        sim_iter_end = iter_bounds[0] + 1
+
+    sim_iterations = list(range(sim_iter_start, sim_iter_end))
+
     #
     for eval_type in eval_types:
         if eval_type in ["CF", "FF"]:
@@ -181,7 +205,8 @@ def main(args):
         else:
             fgt_sizes = [0] # not important here
 
-        for frgt_size, k, pen in product(fgt_sizes, k_list, penalties):
+        for frgt_size, k, pen, iteration in \
+                product(fgt_sizes, k_list, penalties, sim_iterations):
             for exp_value in exp_values:
                 #
                 if exp_code == "klens":
@@ -189,7 +214,8 @@ def main(args):
                 else:
                     job_config.set('seq_rep', 'k', str(k))
                 #
-                exp_name = "{}{}_k{}_{}{}_{}".format(
+                exp_name = "S{}{}{}_K{}{}{}_{}".format(
+                        iteration,
                         exp_mini,
                         exp_value,
                         k,
@@ -200,8 +226,11 @@ def main(args):
                 # Update config parser
                 # set the the value of the parameter to evaluate
                 job_config.set(exp_section, exp_key, str(exp_value))
+                job_config.set('simulation', 'iterations',
+                        "{},{}".format(iteration, iteration))
                 job_config.set('evaluation', 'eval_type', eval_type)
-                job_config.set('seq_rep', 'fragment_size', str(frgt_size))
+                job_config.set('seq_rep', 
+                        'fragment_size', str(frgt_size))
                 job_config.set('classifier', 'penalty', pen)
 
                 # write it on a file
@@ -247,11 +276,15 @@ def str_to_list(chaine, sep=",", cast=None):
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(description='Script to write and run evaluation scripts')
+    parser = argparse.ArgumentParser(
+            description='Script to write and run evaluation scripts')
 
-    parser.add_argument('-c', '--job-config', type=str, required=True)
-    parser.add_argument('-t', '--job-type', type=str, required=True)
-    parser.add_argument('-n', '--job-name', type=str, required=False)
+    parser.add_argument('-c', '--job-config', type=str,
+            required=True)
+    parser.add_argument('-t', '--job-type', type=str,
+            required=True)
+    parser.add_argument('-n', '--job-name', type=str,
+            required=False)
 
     args = parser.parse_args()
 

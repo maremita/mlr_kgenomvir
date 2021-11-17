@@ -139,7 +139,7 @@ if __name__ == "__main__":
                 " FF values")
 
     # simulations
-    sim_iter = config.getint("simulation", "iterations")
+    sim_iter = config.get("simulation", "iterations")
     init_seq = config.get("simulation", "init_seq") # file/none
     init_seq_size = config.getint("simulation", "init_seq_size",
             fallback=None)
@@ -328,11 +328,25 @@ if __name__ == "__main__":
     # SantaSim object for sequence simulation using SANTA
     sim = SantaSim()
     
+    # Set sim iteration bounderies (useful when simulated
+    # data are deterministic)
+    iter_bounds = str_to_list(sim_iter, cast=int)
+ 
+    if len(iter_bounds) == 2:
+        # Config ex: iterations = 1, 10
+        sim_iter_start = iter_bounds[0]
+        sim_iter_end = iter_bounds[1] + 1
+
+    elif len(iter_bounds) == 1:
+        # Config ex: iterations = 5
+        sim_iter_start = 1
+        sim_iter_end = iter_bounds[0] + 1
+
     # Collect score results of all simulation iterations in
     # sim_scores
     sim_scores = []
 
-    for iteration in range(1, sim_iter+1):
+    for iteration in range(sim_iter_start, sim_iter_end):
         if verbose:
             print("\nEvaluating Simulation {}".format(iteration),
                     flush=True)
