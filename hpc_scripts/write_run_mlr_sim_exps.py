@@ -72,6 +72,8 @@ def main(args):
         #
         exp_section = "simulation"
         exp_key = "mutation_rate"
+        #
+        job_config.set(exp_section, "evo_to_assess", exp_key)
 
     # indels
     elif exp_code == "indels":
@@ -80,16 +82,20 @@ def main(args):
         #
         exp_section = "simulation"
         exp_key = "indel_prob"
+        #
+        job_config.set(exp_section, "evo_to_assess", exp_key)
 
     # recombinations
     elif exp_code == "recombs":
         program = "mlr_eval_sim_evoparams.py"
         exp_mini = "R"
-        job_config.set("simulation", "rep_dual_infection",
-                job_config.get("distr_evals", "rep_dual_infection"))
         #
         exp_section = "simulation"
         exp_key = "rep_recombination"
+        #
+        job_config.set(exp_section, "rep_dual_infection",
+                job_config.get("distr_evals", "rep_dual_infection"))
+        job_config.set(exp_section, "evo_to_assess", exp_key)
 
     # imbalanced dataset
     elif exp_code == "imbdata":
@@ -151,8 +157,9 @@ def main(args):
     else:
         raise ValueError(
                 "job_type should be one of these values:\n\n"\
-                "[coverages | mutations | indels | recombs | imbdata |\n "\
-                "imbsamp | klens | lambdas | lrs | lowvars | nbclasses]\n")
+                "[coverages | mutations | indels | recombs |"\
+                " imbdata |\n imbsamp | klens | lambdas | lrs"\
+                " | lowvars | nbclasses]\n")
 
     exp_values = str_to_list(
             job_config.get("distr_evals", exp_code), cast=str)

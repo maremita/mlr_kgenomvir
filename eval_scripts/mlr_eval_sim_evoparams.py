@@ -157,7 +157,28 @@ if __name__ == "__main__":
     class_pop_size_std = config.getfloat("simulation",
             "class_pop_size_std", fallback=None)
 
-    # ........ main evaluation parameters ..............
+    # ........ main evaluation parameters .............. 
+    evo_to_assess = config.get("simulation", "evo_to_assess")
+
+    evo_conf_names = {
+            "init_pop_size": "populationSize",
+            "generation_count": "generationCount",
+            "fitness_freq": "fitnessFreq",
+            "rep_dual_infection": "repDualInfection",
+            "rep_recombination": "repRecombination",
+            "mutation_rate": "mutationRate",
+            "transition_bias": "transitionBias",
+            "indel_model_nb": "indelModelNB",
+            "indel_prob": "indelProb"
+            }
+
+    if evo_to_assess not in evo_conf_names:
+        raise ValueError("\nEvolutionary parameter to assess "\
+                "should be one of this values:\n\n{}\n".format(
+                    "\n".join(evo_conf_names.keys())))
+
+    evo_to_assess = evo_conf_names[evo_to_assess]
+
     evo_params = dict()
     evo_params["populationSize"] = config.get("simulation", 
             "init_pop_size", fallback="100")
@@ -179,16 +200,17 @@ if __name__ == "__main__":
             "indel_prob", fallback=None)
     # ..................................................
 
-    evo_param_names = dict() 
-    evo_param_names["populationSize"] = "Population size" 
-    evo_param_names["generationCount"] = "Generation count"
-    evo_param_names["fitnessFreq"] = "Fitness frequency"
-    evo_param_names["repDualInfection"] = "Dual infection probability"
-    evo_param_names["repRecombination"] = "Recombination probability" 
-    evo_param_names["mutationRate"] = "Mutation rate"
-    evo_param_names["transitionBias"] = "Transition bias" 
-    evo_param_names["indelModelNB"] = "Indel NB distr. parameters" 
-    evo_param_names["indelProb"] = "Indel probability" 
+    evo_param_names = {
+            "populationSize": "Population size",
+            "generationCount": "Generation count",
+            "fitnessFreq": "Fitness frequency",
+            "repDualInfection": "Dual infection probability",
+            "repRecombination": "Recombination probability",
+            "mutationRate": "Mutation rate",
+            "transitionBias": "Transition bias", 
+            "indelModelNB": "Indel NB distr. parameters",
+            "indelProb": "Indel probability",
+            }
 
     # Here we set the initial seq for all iterations.
     # Maybe we need to use different init seq for each iteration
@@ -275,12 +297,9 @@ if __name__ == "__main__":
         else:
             cast_fun=float
 
-        values = str_to_list(evo_params[evo_param], sep=",",
-                cast=cast_fun)
-
-        if len(values) > 1:
-            evo_to_assess = evo_param
-            evo_values = values
+        if evo_to_assess == evo_param:
+            evo_values = str_to_list(evo_params[evo_param], sep=",", 
+                    cast=cast_fun)
             evo_values_str = [str(e).replace(' ', '-') \
                     for e in evo_values]
         else:
