@@ -132,7 +132,7 @@ if __name__ == "__main__":
     plotResults = config.getboolean("settings", "plot_results",
             fallback=True)
     randomState = config.getint("settings", "random_state",
-            fallback=42)
+            fallback=None)
 
     if evalType not in ["CF", "FF"]:
         raise ValueError(
@@ -295,6 +295,11 @@ if __name__ == "__main__":
         if verbose:
             print("\nEvaluating Simulation {}\n".format(iteration),
                     flush=True)
+
+        # Update random state for each iteration to generate 
+        # different datasets
+        if isinstance(randomState, (int)):
+            randomState *= iteration
 
         # Construct names for simulation and classes files
         ##################################################

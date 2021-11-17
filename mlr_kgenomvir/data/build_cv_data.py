@@ -51,7 +51,8 @@ def build_cv_data(
                 (max_ if (e > max_) else e)
         #
         sizes = list(map(lim_fun, norm.rvs(loc=mean_, 
-            scale=std_, size=nb_).astype(np.int)))
+            scale=std_, size=nb_,
+            random_state=random_state).astype(np.int)))
 
         if verbose:
             print("\nSampling original dataset with class sizes:"\
@@ -199,6 +200,12 @@ def build_load_save_cv_data(
                 prefix, k), flush=True)
 
         seq_data = SeqCollection((seq_file, cls_file))
+
+        # work around to let the norm function in build_cv_data 
+        # has a different random state from the norm function
+        # in santasim/sim_labeled_dataset()
+        if isinstance(random_state, (int)):
+            random_state += 50
 
         data = build_cv_data(
                 seq_data,
