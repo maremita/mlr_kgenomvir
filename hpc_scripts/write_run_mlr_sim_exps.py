@@ -250,30 +250,149 @@ def main(args):
                         'fragment_size', str(frgt_size))
                 job_config.set('classifier', 'penalty', pen)
 
-                # write it on a file
-                config_file = os.path.join(config_dir, "{}_{}.ini"\
-                        "".format(exp_name, job_name))
+                measure_files, prefix_mfile = get_measure_file_names(
+                        job_config,
+                        exp_section,
+                        exp_key,
+                        iteration)
 
-                with open (config_file, "w") as fh:
-                    job_config.write(fh)
+                dont_run = all(
+                        [os.path.isfile(f) for f in measure_files])
 
-                # submit job with this config file
-                cmd = "sbatch --account={} --mail-user={} --cpus-per-task={} "\
-                        "--job-name={} --time={} --export=PROGRAM={},CONF_file={} "\
-                        "--mem={} {}--error={} --output={} submit_mlr_exp.sh".format(
-                                account,
-                                mail,
-                                cpu_task,
-                                exp_name, 
-                                time,
-                                program, config_file, 
-                                mem,
-                                set_gres, 
-                                s_error,
-                                s_output)
-                print(cmd, end="\n\n")
-                #os.system(cmd)
+                if not dont_run:
+                    # write it on a file
+                    config_file = os.path.join(
+                            config_dir, "{}_{}.ini".format(
+                                exp_name, job_name))
 
+                    with open (config_file, "w") as fh:
+                        job_config.write(fh)
+
+                    # submit job with this config file
+                    cmd = "sbatch --account={} --mail-user={} "\
+                            "--cpus-per-task={} --job-name={} --time={}"\
+                            " --export=PROGRAM={},CONF_file={} "\
+                            "--mem={} {}--error={} --output={} "\
+                            "submit_mlr_exp.sh".format(
+                                    account,
+                                    mail,
+                                    cpu_task,
+                                    exp_name, 
+                                    time,
+                                    program, config_file, 
+                                    mem,
+                                    set_gres, 
+                                    s_error,
+                                    s_output)
+                    print(cmd, end="\n\n")
+                    os.system(cmd)
+
+def get_measure_file_names(
+        config,
+        exp_section,
+        exp_key,
+        sim_iteration):
+
+    # Get some config parameters
+    outdir = config.get("io", "outdir")
+    job_code = config.get("job", "job_code")
+    klen = config.getint("seq_rep", "k")
+    fullKmers = config.getboolean("seq_rep", "full_kmers")
+    lowVarThreshold = config.get("seq_rep", "low_var_threshold")
+    fragmentSize = config.getint("seq_rep", "fragment_size")
+    fragmentCount = config.getint("seq_rep", "fragment_count")
+    fragmentCov = config.getint("seq_rep", "fragment_cov")
+    evalType = config.get("evaluation", "eval_type")
+    cv_folds = config.getint("evaluation", "cv_folds")
+
+    _module = config.get("classifier", "module")
+    _lambda = config.getfloat("classifier", "lambda")
+    _pen = config.get("classifier", "penalty")
+
+    if _module == "pytorch_mlr":
+        _lr = config.getfloat("classifier",
+                "learning_rate")
+
+    outdir = os.path.join(outdir,"{}".format(evalType))
+
+    # Generate Sim name
+    # #################
+    sim_name = "Sim{}".format(sim_iteration)
+
+    if config.has_option(exp_section, "evo_to_assess"):
+        sim_name += "_EV{}".format(
+                config.get(exp_section, exp_key))
+
+    elif exp_key == "class_pop_size_std":
+        sim_name += "_PSTD{}".format(
+                config.get(exp_section, exp_key))
+
+    elif exp_key == "nb_classes":
+        sim_name += "_CL{}".format(
+                config.get(exp_section, exp_key))
+ 
+    # Generate prefix of output files
+    # ###############################
+    if fullKmers:
+        tag_kf = "F"
+    elif lowVarThreshold:
+        tag_kf = "V"
+    else:
+        tag_kf = "S"
+
+    tag_fg = ""
+    if evalType in ["CF", "FF"]:
+        tag_fg = "FSZ{}_FCV{}_FCL{}_".format(
+                str(fragmentSize),
+                str(fragmentCov),
+                str(fragmentCount))
+
+    prefix_out = os.path.join(
+            outdir,
+            "{}_{}_{}_K{}{}_{}".format(
+                job_code,
+                evalType,
+                sim_name, 
+                tag_kf,
+                klen,
+                tag_fg))
+
+    # Other appends prefix_out
+    if exp_key == "low_var_threshold":
+        prefix_out += "V{}_".format(
+                config.get(exp_section, exp_key))
+
+    elif exp_key == "class_size_std": 
+        prefix_out += "CSTD{}_".format(
+                config.get(exp_section, exp_key))
+
+    # Generate model name
+    # ###################
+    if _module == "pytorch_mlr":
+        mlr_name = "PTMLR"
+
+    else:
+        mlr_name = "SKMLR"
+
+    clf_name = mlr_name+"_"+_pen.upper()
+
+    if _module == "pytorch_mlr":
+        str_lr = format(_lr, '.0e') if _lr not in list(
+                range(0, 10)) else str(_lr)
+        clf_name += "_LR"+str_lr
+
+    if _pen != "none":
+        str_lambda = format(_lambda, '.0e') if _lambda not in list(
+                range(0, 10)) else str(_lambda)
+        clf_name += "_A"+str_lambda
+
+    # clf_name += "_fold{}".format(fold)
+    # measures_file = prefix_out+clf_name+".npz"
+    prename = prefix_out+clf_name
+    measure_files = [prename+"_fold{}".format(fold)+\
+            ".npz" for fold in range(cv_folds)]
+
+    return measure_files, prename
 
 def read_config_file(conf_file):
 
@@ -290,6 +409,7 @@ def str_to_list(chaine, sep=",", cast=None):
     if cast: c = cast
 
     return [c(i.strip()) for i in chaine.split(sep)]
+
 
 if __name__ == '__main__':
 

@@ -348,9 +348,9 @@ if __name__ == "__main__":
             # Construct prefix for output files
             ###################################
             prefix_out = os.path.join(outdir, 
-                    "{}_{}_{}_K{}{}_V{}_{}".format(job_code,
-                        evalType, sim_name, tag_kf, klen,
-                        threshold_str, tag_fg))
+                    "{}_{}_{}_K{}{}_{}V{}_".format(job_code,
+                        evalType, sim_name, tag_kf, klen, tag_fg,
+                        threshold_str))
 
             ## Generate training and testing data
             ####################################

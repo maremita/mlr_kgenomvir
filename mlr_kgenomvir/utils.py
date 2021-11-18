@@ -8,6 +8,7 @@ import scipy
 import scipy.sparse as sp
 import configparser
 
+import pandas as pd
 
 __author__ = "amine"
 
@@ -52,7 +53,8 @@ def get_module_versions():
     versions["python"] = platform.python_version()
 
     module_names = ["mlr_kgenomvir", "numpy", "scipy", "pandas",
-            "sklearn", "Bio", "joblib", "matplotlib", "torch"]
+            "sklearn", "Bio", "joblib", "matplotlib", "torch",
+            "lxml", "dendropy", "phylodm"]
 
     for module_name in module_names:
         found = importlib.util.find_spec(module_name)
@@ -76,6 +78,8 @@ def str_to_list(chaine, sep=",", cast=None):
 
 
 def write_log(results, args, out_file):
+    pd.option_context('display.max_rows', None,
+            'display.max_columns', None)
 
     with open(out_file, "wt") as f:
         f.write("Final results\n##############\n\n")
@@ -94,16 +98,21 @@ def get_stats(mat):
 
     if isinstance(mat, np.ndarray) or sp.issparse(mat):
         chaine = "\tShape {}\n".format(mat.shape)
-        chaine += "\tMemory ~{} MB\n".format(mat.nbytes/1e6) #approximation
+        #approximation
+        chaine += "\tMemory ~{} MB\n".format(mat.nbytes/1e6)
 
         if sp.issparse(mat):
-            chaine += "\tSparsity {}\n".format(np.mean(mat.todense().ravel() == 0))
+            chaine += "\tSparsity {}\n".format(
+                    np.mean(mat.todense().ravel() == 0))
         else:
-            chaine += "\tSparsity {}\n".format(np.mean(mat.ravel() == 0))
+            chaine += "\tSparsity {}\n".format(
+                    np.mean(mat.ravel() == 0))
 
         feat_vars = mat.var(axis=0)
-        chaine += "\tMean of feature variances {}\n".format(feat_vars.mean())
-        chaine += "\tVariance of feature variances {}\n".format(feat_vars.var())
+        chaine += "\tMean of feature variances {}\n".format(
+                feat_vars.mean())
+        chaine += "\tVariance of feature variances {}\n".format(
+                feat_vars.var())
         #chaine += "\tFlags\n{}\n".format(mat.flags)
 
     return chaine

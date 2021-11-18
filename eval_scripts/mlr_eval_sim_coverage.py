@@ -345,7 +345,7 @@ if __name__ == "__main__":
             # Construct prefix for output files
             ###################################
             tag_fg = "FSZ{}_FCV{}_FCL{}_".format(str(fragmentSize),
-            coverage_str, str(fragmentCount))
+                    coverage_str, str(fragmentCount))
 
             prefix_out = os.path.join(outdir,
                     "{}_{}_{}_K{}{}_{}".format(job_code, 
