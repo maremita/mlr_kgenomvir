@@ -130,6 +130,8 @@ if __name__ == "__main__":
             fallback=False)
     saveResults = config.getboolean("settings", "save_results",
             fallback=True)
+    saveFinalResults = config.getboolean("settings",
+            "save_final_results", fallback=True)
     plotResults = config.getboolean("settings", "plot_results",
             fallback=True)
     randomState = config.getint("settings", "random_state",
@@ -406,7 +408,7 @@ if __name__ == "__main__":
                     class_size_stds_str[-1], tag_fg, mlr_name,
                     str_lr, str_lambda, avrg_metric, eval_metric))
 
-        if saveResults:
+        if saveFinalResults:
             write_log(scores_dfs, config, outFileSim+".log")
             with open(outFileSim+".jb", 'wb') as fh:
                 dump(scores_dfs, fh)
@@ -430,7 +432,7 @@ if __name__ == "__main__":
                         mlr_name, str_lr, str_lambda,
                         avrg_metric, eval_metric))
 
-    if saveResults:
+    if saveFinalResults:
         write_log(sim_scores_dfs, config, outFile+".log")
         with open(outFile+".jb", 'wb') as fh:
             dump(sim_scores_dfs, fh)
