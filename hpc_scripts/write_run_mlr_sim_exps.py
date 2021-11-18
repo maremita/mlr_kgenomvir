@@ -260,7 +260,7 @@ def main(args):
                         [os.path.isfile(f) for f in measure_files])
 
                 if not dont_run:
-                    # write it on a file
+                    # write config on a file
                     config_file = os.path.join(
                             config_dir, "{}_{}.ini".format(
                                 exp_name, job_name))
@@ -270,8 +270,9 @@ def main(args):
 
                     # submit job with this config file
                     cmd = "sbatch --account={} --mail-user={} "\
-                            "--cpus-per-task={} --job-name={} --time={}"\
-                            " --export=PROGRAM={},CONF_file={} "\
+                            "--cpus-per-task={} --job-name={} "\
+                            "--time={} "\
+                            "--export=PROGRAM={},CONF_file={} "\
                             "--mem={} {}--error={} --output={} "\
                             "submit_mlr_exp.sh".format(
                                     account,
@@ -284,8 +285,13 @@ def main(args):
                                     set_gres, 
                                     s_error,
                                     s_output)
-                    print(cmd, end="\n\n")
-                    os.system(cmd)
+
+                    print(prefix_mfile)
+                    print(cmd, end="\n")
+
+                    ## Uncomment to launch the job
+                    #os.system(cmd)
+                    print("\n")
 
 def get_measure_file_names(
         config,
@@ -319,18 +325,20 @@ def get_measure_file_names(
     # #################
     sim_name = "Sim{}".format(sim_iteration)
 
+    sim_value = config.getfloat(exp_section, exp_key)
+
     if config.has_option(exp_section, "evo_to_assess"):
-        sim_name += "_EV{}".format(
-                config.get(exp_section, exp_key))
+        # TODO Support str conversion of indelModelNB 
+        sim_value = str(sim_value) if sim_value in list(range(0, 10))\
+                else format(sim_value, '.0e') 
+        sim_name += "_EV{}".format(sim_value)
 
     elif exp_key == "class_pop_size_std":
-        sim_name += "_PSTD{}".format(
-                config.get(exp_section, exp_key))
+        sim_name += "_PSTD{}".format(sim_value)
 
     elif exp_key == "nb_classes":
-        sim_name += "_CL{}".format(
-                config.get(exp_section, exp_key))
- 
+        sim_name += "_CL{}".format(sim_value)
+
     # Generate prefix of output files
     # ###############################
     if fullKmers:
@@ -386,8 +394,6 @@ def get_measure_file_names(
                 range(0, 10)) else str(_lambda)
         clf_name += "_A"+str_lambda
 
-    # clf_name += "_fold{}".format(fold)
-    # measures_file = prefix_out+clf_name+".npz"
     prename = prefix_out+clf_name
     measure_files = [prename+"_fold{}".format(fold)+\
             ".npz" for fold in range(cv_folds)]

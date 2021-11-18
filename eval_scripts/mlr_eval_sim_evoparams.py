@@ -302,8 +302,13 @@ if __name__ == "__main__":
         if evo_to_assess == evo_param:
             evo_values = str_to_list(evo_params[evo_param], sep=",", 
                     cast=cast_fun)
-            evo_values_str = [str(e).replace(' ', '-') \
-                    for e in evo_values]
+
+            if evo_to_assess == "indelModelNB":
+                evo_values_str = [str(e).replace(' ', '-')\
+                        for e in evo_values]
+            else:
+                evo_values_str = [str(e) if e in list(range(0, 10))\
+                        else format(e, '.0e') for e in evo_values]
         else:
             evo_params[evo_param] = cast_fun(evo_params[evo_param])
 
