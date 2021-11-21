@@ -354,7 +354,7 @@ def perform_mlr_cv(
     return avrg_scores
 
 
-def get_mlr_cv_from_files(
+def extract_mlr_scores(
         clf_name,
         penalty,
         _lambda,

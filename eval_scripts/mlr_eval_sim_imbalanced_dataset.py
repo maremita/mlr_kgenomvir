@@ -3,6 +3,7 @@
 from mlr_kgenomvir.data.seq_collections import SeqCollection
 from mlr_kgenomvir.data.build_cv_data import build_load_save_cv_data
 from mlr_kgenomvir.models.model_evaluation import perform_mlr_cv
+from mlr_kgenomvir.models.model_evaluation import extract_mlr_scores
 from mlr_kgenomvir.models.model_evaluation import compile_score_names
 from mlr_kgenomvir.models.model_evaluation import make_clf_score_dataframes
 from mlr_kgenomvir.models.model_evaluation import average_scores_dataframes
@@ -133,6 +134,8 @@ if __name__ == "__main__":
             "save_final_results", fallback=True)
     plotResults = config.getboolean("settings", "plot_results",
             fallback=True)
+    plotResultsOnly = config.getboolean("settings",
+            "plot_results_only", fallback=False)
     randomState = config.getint("settings", "random_state",
             fallback=None)
 
@@ -332,74 +335,91 @@ if __name__ == "__main__":
 
         for ind, class_std in enumerate(class_size_stds):
             class_std_str = class_size_stds_str[ind]
-            if verbose:
-                print("\n{}. Evaluating class size std: {}\n".format(
-                    ind+1, class_std_str), flush=True)
 
             # Construct names for simulation and classes files
-            ##################################################
             sim_name = "Sim{}_PSTD{}".format(iteration,
                     class_std_str)
 
-            # Simulate viral population based on input fasta
-            ################################################
-            sim_file, cls_file = sim.sim_labeled_dataset(
-                    [initseq],
-                    evo_params,
-                    sim_dir,
-                    sim_name,
-                    init_gen_count_frac=init_gen_count_fraction,
-                    nb_classes=nb_classes,
-                    class_pop_size=class_pop_size,
-                    class_pop_size_std=class_std,
-                    class_pop_size_min=class_pop_size_min,
-                    class_pop_size_max=class_pop_size_max,
-                    load_data=loadData,
-                    random_state=randomState,
-                    verbose=verbose)
-
             # Construct prefix for output files
-            ###################################
             prefix_out = os.path.join(outdir, 
                     "{}_{}_{}_K{}{}_{}".format(job_code,
                         evalType, sim_name, tag_kf, klen, tag_fg))
 
-            ## Generate training and testing data
-            ####################################
-            tt_data = build_load_save_cv_data(
-                    sim_file,
-                    cls_file,
-                    prefix_out,
-                    eval_type=evalType,
-                    k=klen,
-                    full_kmers=fullKmers,
-                    low_var_threshold=lowVarThreshold,
-                    n_splits=cv_folds,
-                    test_size=testSize,
-                    load_data=loadData,
-                    save_data=saveData,
-                    random_state=randomState,
-                    verbose=verbose,
-                    **sampling_args,
-                    **args_fg)
+            if not plotResultsOnly:
+                if verbose:
+                    print("\n{}. Evaluating class size std: "\
+                            "{}\n".format(ind+1, class_std_str), 
+                            flush=True)
 
-            cv_data = tt_data["data"]
+                # Simulate viral population based on input fasta
+                ################################################
+                sim_file, cls_file = sim.sim_labeled_dataset(
+                        [initseq],
+                        evo_params,
+                        sim_dir,
+                        sim_name,
+                        init_gen_count_frac=init_gen_count_fraction,
+                        nb_classes=nb_classes,
+                        class_pop_size=class_pop_size,
+                        class_pop_size_std=class_std,
+                        class_pop_size_min=class_pop_size_min,
+                        class_pop_size_max=class_pop_size_max,
+                        load_data=loadData,
+                        random_state=randomState,
+                        verbose=verbose)
 
-            if verbose:
-                print("X_train descriptive stats:\n{}".format(
-                    get_stats(cv_data["X_train"])))
-            
-            ## Train and compute performance of classifiers
-            ###############################################
-            mlr_scores = parallel(delayed(perform_mlr_cv)(
-                clone(mlr), clf_name, clf_penalty, _lambda,
-                cv_data, prefix_out, metric=eval_metric,
-                average_metric=avrg_metric, n_jobs=n_cvJobs,
-                load_model=loadModels, save_model=saveModels,
-                load_result=loadResults, save_result=saveResults,
-                verbose=verbose, random_state=randomState)
-                for clf_name, clf_penalty in zip(clf_names,
-                    clf_penalties))
+                ## Generate training and testing data
+                ####################################
+                tt_data = build_load_save_cv_data(
+                        sim_file,
+                        cls_file,
+                        prefix_out,
+                        eval_type=evalType,
+                        k=klen,
+                        full_kmers=fullKmers,
+                        low_var_threshold=lowVarThreshold,
+                        n_splits=cv_folds,
+                        test_size=testSize,
+                        load_data=loadData,
+                        save_data=saveData,
+                        random_state=randomState,
+                        verbose=verbose,
+                        **sampling_args,
+                        **args_fg)
+
+                cv_data = tt_data["data"]
+
+                if verbose:
+                    print("X_train descriptive stats:\n{}".format(
+                        get_stats(cv_data["X_train"])))
+                
+                ## Train and compute performance of classifiers
+                ###############################################
+                mlr_scores = parallel(delayed(perform_mlr_cv)(
+                    clone(mlr), clf_name, clf_penalty, _lambda,
+                    cv_data, prefix_out, metric=eval_metric,
+                    average_metric=avrg_metric, n_jobs=n_cvJobs,
+                    load_model=loadModels, save_model=saveModels,
+                    load_result=loadResults, save_result=saveResults,
+                    verbose=verbose, random_state=randomState)
+                    for clf_name, clf_penalty in zip(clf_names,
+                        clf_penalties))
+
+            else:
+                if verbose:
+                    print("\n{}. Loading class size std: "\
+                            "{}\n".format(ind+1, class_std_str), 
+                            flush=True)
+
+                ## Extract MLR result performance from files 
+                ############################################
+                mlr_scores = parallel(delayed(extract_mlr_scores)(
+                    clf_name, clf_penalty, _lambda, prefix_out,
+                    cv_folds, learning_rate=_learning_rate,
+                    metric=eval_metric, average_metric=avrg_metric,
+                    verbose=verbose)
+                    for clf_name, clf_penalty in zip(clf_names,
+                        clf_penalties))
 
             # Add the scores of current class_std to clf_scores
             for i, clf_name in enumerate(clf_names):
@@ -421,12 +441,12 @@ if __name__ == "__main__":
                     tag_kf, klen, tag_fg, mlr_name,
                     str_lr, str_lambda, avrg_metric, eval_metric))
 
-        if saveFinalResults:
+        if saveFinalResults or plotResultsOnly:
             write_log(scores_dfs, config, outFileSim+".log")
             with open(outFileSim+".jb", 'wb') as fh:
                 dump(scores_dfs, fh)
 
-        if plotResults:
+        if plotResults or plotResultsOnly:
             plot_cv_figure(scores_dfs, score_names,
                     class_size_stds_str, "Population class size STD",
                     outFileSim)
@@ -446,12 +466,12 @@ if __name__ == "__main__":
                         mlr_name, str_lr, str_lambda,
                         avrg_metric, eval_metric))
 
-    if saveFinalResults:
+    if saveFinalResults or plotResultsOnly:
         write_log(sim_scores_dfs, config, outFile+".log")
         with open(outFile+".jb", 'wb') as fh:
             dump(sim_scores_dfs, fh)
 
-    if plotResults:
+    if plotResults or plotResultsOnly:
         plot_cv_figure(sim_scores_dfs, score_names,
                 class_size_stds_str, "Population class size STD",
                 outFile)

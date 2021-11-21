@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from mlr_kgenomvir.models.model_evaluation import get_mlr_cv_from_files
+from mlr_kgenomvir.models.model_evaluation import extract_mlr_scores
 from mlr_kgenomvir.models.model_evaluation import compile_score_names
 from mlr_kgenomvir.models.model_evaluation import make_clf_score_dataframes
 from mlr_kgenomvir.models.model_evaluation import plot_cv_figure
@@ -170,7 +170,7 @@ if __name__ == "__main__":
             mlr_scores = []
 
             for clf_name, clf_penalty in zip(clf_names, clf_penalties):
-                avg_scores = get_mlr_cv_from_files(clf_name, clf_penalty, _lambda,
+                avg_scores = extract_mlr_scores(clf_name, clf_penalty, _lambda,
                         prefix_out, cv_folds, learning_rate=_lr,
                         metric=eval_metric, average_metric=avrg_metric, 
                         verbose=verbose)

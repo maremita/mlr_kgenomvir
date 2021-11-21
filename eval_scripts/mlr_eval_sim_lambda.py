@@ -3,6 +3,7 @@
 from mlr_kgenomvir.data.seq_collections import SeqCollection
 from mlr_kgenomvir.data.build_cv_data import build_load_save_cv_data
 from mlr_kgenomvir.models.model_evaluation import perform_mlr_cv
+from mlr_kgenomvir.models.model_evaluation import extract_mlr_scores
 from mlr_kgenomvir.models.model_evaluation import compile_score_names
 from mlr_kgenomvir.models.model_evaluation import make_clf_score_dataframes
 from mlr_kgenomvir.models.model_evaluation import average_scores_dataframes
@@ -134,6 +135,8 @@ if __name__ == "__main__":
             "save_final_results", fallback=True)
     plotResults = config.getboolean("settings", "plot_results",
             fallback=True)
+    plotResultsOnly = config.getboolean("settings",
+            "plot_results_only", fallback=False)
     randomState = config.getint("settings", "random_state",
             fallback=None)
 
@@ -328,75 +331,96 @@ if __name__ == "__main__":
             randomState *= iteration
 
         # Construct names for simulation and classes files
-        ###################################
         sim_name = "Sim{}".format(iteration)
 
-        # Simulate viral population based on input fasta
-        ################################################
-        sim_file, cls_file = sim.sim_labeled_dataset(
-                [initseq],
-                evo_params,
-                sim_dir,
-                sim_name,
-                init_gen_count_frac=init_gen_count_fraction,
-                nb_classes=nb_classes,
-                class_pop_size=class_pop_size,
-                class_pop_size_std=class_pop_size_std,
-                class_pop_size_min=class_pop_size_min,
-                class_pop_size_max=class_pop_size_max,
-                load_data=loadData,
-                random_state=randomState,
-                verbose=verbose)
-
         # Construct prefix for output files
-        ###################################
         prefix_out = os.path.join(outdir,
                 "{}_{}_{}_K{}{}_{}".format(job_code, 
                     evalType, sim_name, tag_kf, klen, tag_fg))
 
-        ## Generate training and testing data
-        ####################################
-        tt_data = build_load_save_cv_data(
-                sim_file,
-                cls_file,
-                prefix_out,
-                eval_type=evalType,
-                k=klen,
-                full_kmers=fullKmers,
-                low_var_threshold=lowVarThreshold,
-                n_splits=cv_folds,
-                test_size=testSize,
-                load_data=loadData,
-                save_data=saveData,
-                random_state=randomState,
-                verbose=verbose,
-                **sampling_args,
-                **args_fg)
+        if not plotResultsOnly:
+            # Simulate viral population based on input fasta
+            ################################################
+            sim_file, cls_file = sim.sim_labeled_dataset(
+                    [initseq],
+                    evo_params,
+                    sim_dir,
+                    sim_name,
+                    init_gen_count_frac=init_gen_count_fraction,
+                    nb_classes=nb_classes,
+                    class_pop_size=class_pop_size,
+                    class_pop_size_std=class_pop_size_std,
+                    class_pop_size_min=class_pop_size_min,
+                    class_pop_size_max=class_pop_size_max,
+                    load_data=loadData,
+                    random_state=randomState,
+                    verbose=verbose)
 
-        cv_data = tt_data["data"]
+            ## Generate training and testing data
+            ####################################
+            tt_data = build_load_save_cv_data(
+                    sim_file,
+                    cls_file,
+                    prefix_out,
+                    eval_type=evalType,
+                    k=klen,
+                    full_kmers=fullKmers,
+                    low_var_threshold=lowVarThreshold,
+                    n_splits=cv_folds,
+                    test_size=testSize,
+                    load_data=loadData,
+                    save_data=saveData,
+                    random_state=randomState,
+                    verbose=verbose,
+                    **sampling_args,
+                    **args_fg)
 
-        if verbose:
-            print("X_train descriptive stats:\n{}".format(
-                get_stats(cv_data["X_train"])))
+            cv_data = tt_data["data"]
 
-        for i, (clf_name, clf_penalty) in enumerate(
-                zip(clf_names, clf_penalties)):
             if verbose:
-                print("\n{}. Evaluating {}".format(i+1, clf_name),
-                        flush=True)
+                print("X_train descriptive stats:\n{}".format(
+                    get_stats(cv_data["X_train"])))
 
-            mlr_scores = parallel(delayed(perform_mlr_cv)(
-                clone(mlr), clf_name, clf_penalty, _lambda,
-                cv_data, prefix_out, metric=eval_metric,
-                average_metric=avrg_metric, n_jobs=n_cvJobs,
-                load_model=loadModels, save_model=saveModels,
-                load_result=loadResults, save_result=saveResults,
-                verbose=verbose, random_state=randomState)
-                for _lambda in lambdas)
+        for ind, _lambda in enumerate(lambdas):
+            lambda_str = lambdas_str[ind]
 
-            for j, lambda_str in enumerate(lambdas_str):
-                clf_scores[clf_name][lambda_str] = mlr_scores[j]
+            if not plotResultsOnly:
+                if verbose:
+                    print("\n{}. Evaluating lambda {}\n".format(
+                        ind+1, lambda_str), flush=True)
 
+                ## Train and compute performance of classifiers
+                ###############################################
+                mlr_scores = parallel(delayed(perform_mlr_cv)(
+                    clone(mlr), clf_name, clf_penalty, _lambda,
+                    cv_data, prefix_out, metric=eval_metric,
+                    average_metric=avrg_metric, n_jobs=n_cvJobs,
+                    load_model=loadModels, save_model=saveModels,
+                    load_result=loadResults, save_result=saveResults,
+                    verbose=verbose, random_state=randomState)
+                    for clf_name, clf_penalty in zip(clf_names,
+                        clf_penalties))
+
+            else:
+                if verbose:
+                    print("\n{}. Loading lambda {}\n".format(
+                        ind+1, lambda_str), flush=True)
+
+                ## Extract MLR result performance from files 
+                ############################################
+                mlr_scores = parallel(delayed(extract_mlr_scores)(
+                    clf_name, clf_penalty, _lambda, prefix_out,
+                    cv_folds, learning_rate=_learning_rate,
+                    metric=eval_metric, average_metric=avrg_metric,
+                    verbose=verbose)
+                    for clf_name, clf_penalty in zip(clf_names,
+                        clf_penalties))
+
+            # Add the scores of current lambda to clf_scores
+            for i, clf_name in enumerate(clf_names):
+                clf_scores[clf_name][lambda_str] = mlr_scores[i]
+
+        # Rearrange clf_scores into dict of mean and std dataframes
         scores_dfs = make_clf_score_dataframes(clf_scores, 
                 lambdas_str, score_names, _max_iter)
 
@@ -411,12 +435,12 @@ if __name__ == "__main__":
                             lambdas_str[0], lambdas_str[-1],
                             avrg_metric, eval_metric))
 
-        if saveFinalResults:
+        if saveFinalResults or plotResultsOnly:
             write_log(scores_dfs, config, outFileSim+".log")
             with open(outFileSim+".jb", 'wb') as fh:
                 dump(scores_dfs, fh)
 
-        if plotResults:
+        if plotResults or plotResultsOnly:
             plot_cv_figure(scores_dfs, score_names, lambdas_str,
                     "Lambda", outFileSim)
 
@@ -432,12 +456,12 @@ if __name__ == "__main__":
                 mlr_name, str_lr, lambdas_str[0], lambdas_str[-1],
                 avrg_metric, eval_metric))
 
-    if saveFinalResults:
+    if saveFinalResults or plotResultsOnly:
         write_log(sim_scores_dfs, config, outFile+".log")
         with open(outFile+".jb", 'wb') as fh:
             dump(sim_scores_dfs, fh)
 
-    if plotResults:
+    if plotResults or plotResultsOnly:
         plot_cv_figure(sim_scores_dfs, score_names, lambdas_str,
                 "Lambda", outFile)
 
