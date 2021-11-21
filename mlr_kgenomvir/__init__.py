@@ -11,6 +11,6 @@
 
 __author__ = ["Amine Remita", "Nicolas De Montigny"]
 __date__   = "20211121"
-__version__ = "0.10.13.12"
+__version__ = "0.10.13.13"
 
 __all__ = ['data', 'models', 'simulation', 'utils']

@@ -25,6 +25,7 @@ def main(args):
     job_config = read_config_file(args.job_config)
     exp_code = args.job_type
     job_name = args.job_name
+    plot_only = args.plot_only
 
     account = job_config.get("slurm", "account")
     mail = job_config.get("slurm", "mail_user")
@@ -34,7 +35,6 @@ def main(args):
     mem = job_config.get("main_settings", "mem")
     time = job_config.get("main_settings", "time")
     output_folder = job_config.get("main_settings", "output_folder")
-    plot_only = job_config.getboolean("main_settings", "plot_only")
 
     if not job_name:
         now = datetime.now()
@@ -210,10 +210,13 @@ def main(args):
     else:
         job_config.set('classifier', 'device', "cpu")
 
+    # Set parameter to run computations or plot results already done
+    job_config.set('settings', 'plot_results_only', str(plot_only))
+
     # Run computations
     if not plot_only:
         print("Running {} experiments\n".format(job_name))
-        #
+
         nb_runs = defaultdict(lambda: 0)
         for eval_type in eval_types:
             if eval_type in ["CF", "FF"]:
@@ -310,11 +313,12 @@ def main(args):
             print("{}: {}".format(run_type, nb_runs[run_type]))
             total += nb_runs[run_type]
         print("Total: {}".format(total))
-    #
+
     ## If all computations are done
     ## Aggregate results and generate plots
     else:
         print("Plotting {} experiments\n".format(job_name))
+
         for eval_type in eval_types:
             if eval_type in ["CF", "FF"]:
                 fgt_sizes = fragment_sizes
@@ -346,12 +350,6 @@ def main(args):
                 job_config.set('classifier', 
                         'penalty', ", ".join(penalties))
  
-                job_config.set('settings', 'load_data', "True")
-                job_config.set('settings', 'load_models', "True")
-                job_config.set('settings', 'load_results', "True")
-                job_config.set('settings', 'save_final_results', "True")
-                job_config.set('settings', 'plot_results', "True")
-
                 # write config on a file
                 config_file = os.path.join(
                         config_dir, "{}_{}.ini".format(
@@ -404,7 +402,7 @@ def get_measure_file_names(
     lowVarThreshold = config.get("seq_rep", "low_var_threshold")
     fragmentSize = config.getint("seq_rep", "fragment_size")
     fragmentCount = config.getint("seq_rep", "fragment_count")
-    fragmentCov = config.getint("seq_rep", "fragment_cov")
+    fragmentCov = config.getfloat("seq_rep", "fragment_cov")
     evalType = config.get("evaluation", "eval_type")
     cv_folds = config.getint("evaluation", "cv_folds")
 
@@ -532,10 +530,11 @@ if __name__ == '__main__':
             required=True)
     parser.add_argument('-n', '--job-name', type=str,
             required=False)
+    parser.add_argument('--plot-only', dest='plot_only',
+            action='store_true')
 
     args = parser.parse_args()
 
     main(args)
 
     print("\nFin normale du programme")
-
