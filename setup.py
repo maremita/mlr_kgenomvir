@@ -20,11 +20,13 @@ setup(
     package_data={'': ['*.jar', 'mlr_kgenomvir/simulation/santa.jar']},
     include_packages_data=True,
     scripts=[
+        #
         'eval_scripts/mlr_eval_cv_coverage.py',
         'eval_scripts/mlr_eval_cv_klen.py',
         'eval_scripts/mlr_eval_cv_lambda.py',
         'eval_scripts/mlr_eval_cv_learning_rate.py',
         'eval_scripts/mlr_eval_cv_lowVar.py',
+        #
         'eval_scripts/mlr_eval_sim_coverage.py',
         'eval_scripts/mlr_eval_sim_evoparams.py',
         'eval_scripts/mlr_eval_sim_imbalanced_dataset.py',
@@ -34,6 +36,10 @@ setup(
         'eval_scripts/mlr_eval_sim_learning_rate.py',
         'eval_scripts/mlr_eval_sim_lowVar.py',
         'eval_scripts/mlr_eval_sim_nbclasses.py',
+        #
+        'hpc_scripts/write_run_mlr_sim_exps.py',
+        'hpc_scripts/submit_mlr_exp.sh',
+        #
         'report_scripts/mlr_plot_cv_klen.py',
         'report_scripts/mlr_plot_cv_lambda.py',
         'report_scripts/mlr_plot_cv_learning_rate.py'],
