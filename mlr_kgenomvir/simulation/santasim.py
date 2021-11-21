@@ -5,6 +5,7 @@ from mlr_kgenomvir.data.seq_collections import SeqCollection
 import os
 import re
 import copy
+import random
 from random import choice
 from collections import defaultdict
 
@@ -82,7 +83,6 @@ class SantaSim():
         # 
         assert(classPopSizeMax_ >= classPopSizeMin_)
 
-
         if loadData_ and os.path.isfile(finalFasta_) \
                 and os.path.isfile(finalClsFile_): 
             if verbose_:
@@ -111,7 +111,7 @@ class SantaSim():
                     outName_+"_init")
             initFasta, initTree = cls.run_santa(initSeqs_[0],
                     "cinit", initOutput, evoParams_,
-                    set_seed=None)
+                    set_seed=random_state_)
 
             init_seq_col = SeqCollection.read_bio_file(initFasta)
             init_seq_cls = cls.generate_classes(initTree, 
@@ -119,6 +119,8 @@ class SantaSim():
 
             seq_names = []
             ancestral_seqs = []
+            random.seed(random_state_)
+
             for c in init_seq_cls:
                 seq_names.append(choice(init_seq_cls[c]))
 
@@ -150,7 +152,8 @@ class SantaSim():
             pop_sizes = list(map(lim_fun, norm.rvs(
                 loc=classPopSize_, 
                 scale=classPopSizeStd_, 
-                size=nbClasses_).astype(np.int)))
+                size=nbClasses_,
+                random_state=random_state_).astype(np.int)))
 
         else:
             # All classes have the same size
@@ -168,9 +171,9 @@ class SantaSim():
         # to simulate nbClasses
         simFiles = parallel(delayed(cls.run_santa)(seq, 
             "c{}".format(i), output+str(i), evoParams_,
-            set_pop_size=pop_size, set_seed=None) 
-            for i, (seq, pop_size) in enumerate(zip(
-                ancestral_seqs, pop_sizes)))
+            set_pop_size=pop_size, set_seed=random_state_,
+            nb_run=i+1) for i, (seq, pop_size) in enumerate(
+                zip(ancestral_seqs, pop_sizes)))
 
         # Merge datasets
         # Each fasta file corresponds to a class
@@ -190,20 +193,25 @@ class SantaSim():
     # Main function for executing SANTA
     @classmethod
     def run_santa(cls, sequence, tag, output, evo_params, 
-            set_pop_size=None, set_seed=None):
+            set_pop_size=None, set_seed=None, nb_run=None):
 
         if set_pop_size:
             evo_params["populationSize"] = set_pop_size
  
-        simFasta, simTree, configFile = cls.write_santa_XML_config(
-                sequence, tag, output, **evo_params)
         seed_str = ""
-        if set_seed:
+        if isinstance(set_seed, (int)):
+            if isinstance(nb_run, (int)): set_seed += nb_run
             seed_str = " -seed={}".format(set_seed)
+
+        simFasta, simTree, configFile = cls.write_santa_XML_config(
+                sequence, tag, output, random_state=set_seed,
+                **evo_params)
+
         cmd = "java -jar {}{} {}".format(cls.santaPath, seed_str,
                 configFile)
-        print("Executing simulations : " + cmd)
+        print("Executing simulation : " + cmd)
         os.system(cmd)
+
         return simFasta, simTree
 
     # Generate classes file from a tree file in newick format
@@ -233,7 +241,9 @@ class SantaSim():
     # Change uncertain nucleotides from sequencing or 
     # consensus in databases
     @classmethod
-    def normalise_nucleotides(cls, sequence):
+    def normalise_nucleotides(cls, sequence, random_state=None):
+        random.seed(random_state)
+
         seq = list(sequence)
         for i in range(len(seq)):
             if not bool(re.match('^[ACGT]+$', str(seq[i]))):
@@ -279,7 +289,8 @@ class SantaSim():
             mutationRate=0.0001,
             transitionBias=2.0,
             indelModelNB=None,
-            indelProb=None):
+            indelProb=None,
+            random_state=None):
 
         configFile = "{}.xml".format(outputFile)
 
@@ -305,6 +316,8 @@ class SantaSim():
             #
             # Instead we generate a random sequence
             ## code from stackoverflow
+            np.random.seed(random_state)
+
             bases = ("A", "G", "C", "T")
             probs = (0.2, 0.3, 0.3, 0.2)
 
@@ -319,7 +332,8 @@ class SantaSim():
             fasta_length.text = str(len(sequence.seq))
             fasta_sq = et.SubElement(fasta, "sequences")
             fasta_sq.text = str(
-                    cls.normalise_nucleotides(sequence.seq))
+                    cls.normalise_nucleotides(sequence.seq,
+                        random_state=random_state))
 
         #
         pop = et.SubElement(simulation, "population")

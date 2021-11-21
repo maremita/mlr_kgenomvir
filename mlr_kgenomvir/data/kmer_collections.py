@@ -55,7 +55,7 @@ class KmersCollection(ABC):
 
     def __compute_kmers_from_collection(self, sequences):
         for i, seq in enumerate(sequences):
-            self._compute_kmers_of_sequence(seq.seq._data, i)
+            self._compute_kmers_of_sequence(str(seq.seq._data), i)
             self.ids.append(seq.id)
 
         return self
@@ -98,8 +98,10 @@ class FullKmersCollection(KmersCollection):
         #
         self.ids = []
         self.v_size = np.power(len(self.alphabet), int(self.k))
-        self.data = np.zeros((len(sequences), self.v_size), dtype=self.dtype)
-        self.kmers_list = ["".join(t) for t in product(alphabet, repeat=k)]
+        self.data = np.zeros((len(sequences), self.v_size),
+                dtype=self.dtype)
+        self.kmers_list = ["".join(t) for t in product(
+            alphabet, repeat=k)]
         #
         self._compute_kmers(sequences)
         self._convert_to_sparse_matrix()
@@ -110,7 +112,8 @@ class FullKmersCollection(KmersCollection):
         for i in range(len(sequence) - int(self.k) + 1):
             kmer = sequence[i:i + int(self.k)]
 
-            if self.alphabet and bool(search(kmer)) or not self.alphabet:
+            if self.alphabet and bool(search(kmer)) or\
+                    not self.alphabet:
                 ind_kmer = get_index_from_kmer(kmer, int(self.k))
                 self.data[ind][ind_kmer] += 1
 
@@ -142,7 +145,8 @@ class SeenKmersCollection(KmersCollection):
         for i in range(len(sequence) - int(self.k) + 1):
             kmer = sequence[i:i + int(self.k)]
 
-            if self.alphabet and bool(search(kmer)) or not self.alphabet:
+            if self.alphabet and bool(search(kmer)) or\
+                    not self.alphabet:
                 self.dict_data[kmer][ind] += 1
 
         return self
@@ -153,16 +157,22 @@ class SeenKmersCollection(KmersCollection):
         self.v_size = len(self.kmers_list)
 
         # Convert to numpy
-        self.data = np.array([ self.dict_data[x] for x in self.dict_data ],
-                dtype=self.dtype).T
+        self.data = np.array([ self.dict_data[x] for x in\
+                self.dict_data ], dtype=self.dtype).T
 
         return self
 
 
 class VarKmersCollection(SeenKmersCollection):
 
-    def __init__(self, sequences, low_var_threshold=0.01, k=5, sparse=None,
-            dtype=np.uint64, alphabet="ACGT"):
+    def __init__(self, 
+            sequences, 
+            low_var_threshold=0.01,
+            k=5,
+            sparse=None,
+            dtype=np.uint64,
+            alphabet="ACGT"):
+
         super().__init__(sequences, k=k, sparse=sparse,
                 dtype=dtype, alphabet=alphabet)
 
@@ -170,17 +180,22 @@ class VarKmersCollection(SeenKmersCollection):
         selection = VarianceThreshold(threshold=low_var_threshold)
         self.data = selection.fit_transform(self.data)
 
-
         # update kmer list
         self.v_size = self.data.shape[1]
         _support = selection.get_support()
-        self.kmers_list = [ kmer for i, kmer in enumerate(self.kmers_list) if _support[i] ]
+        self.kmers_list = [ kmer for i, kmer in\
+                enumerate(self.kmers_list) if _support[i] ]
 
 
 class GivenKmersCollection(KmersCollection):
 
-    def __init__(self, sequences, kmers_list, sparse=None,
-            dtype=np.uint64, alphabet="ACGT"):
+    def __init__(self,
+            sequences,
+            kmers_list,
+            sparse=None,
+            dtype=np.uint64,
+            alphabet="ACGT"):
+
         self.sparse = sparse
         self.dtype = dtype
         self.alphabet = alphabet
@@ -191,7 +206,8 @@ class GivenKmersCollection(KmersCollection):
         #
         self.ids = []
         self.v_size = len(self.kmers_list)
-        self.data = np.zeros((len(sequences), self.v_size), dtype=self.dtype)
+        self.data = np.zeros((len(sequences), self.v_size),
+                dtype=self.dtype)
         #
         self._compute_kmers(sequences)
         self._convert_to_sparse_matrix()
@@ -207,7 +223,8 @@ class GivenKmersCollection(KmersCollection):
         return self
 
     def __construct_kmer_indices(self):
-        self.kmers_indices = {kmer:i for i, kmer in enumerate(self.kmers_list)}
+        self.kmers_indices = {kmer:i for i, kmer in\
+                enumerate(self.kmers_list)}
 
         return self
 
@@ -216,8 +233,8 @@ class GivenKmersCollection(KmersCollection):
 # Data build functions
 # ####################
 
-def build_kmers(seq_data, k, full_kmers=False, low_var_threshold=None,
-        sparse=None, dtype=np.uint64):
+def build_kmers(seq_data, k, full_kmers=False,
+        low_var_threshold=None, sparse=None, dtype=np.uint64):
 
     if full_kmers:
         return FullKmersCollection(
@@ -232,8 +249,8 @@ def build_kmers(seq_data, k, full_kmers=False, low_var_threshold=None,
                 seq_data, k=k, sparse=sparse, dtype=dtype)
 
 
-def build_kmers_Xy_data(seq_data, k, full_kmers=False, low_var_threshold=None,
-        sparse=None, dtype=np.uint64):
+def build_kmers_Xy_data(seq_data, k, full_kmers=False,
+        low_var_threshold=None, sparse=None, dtype=np.uint64):
 
     X_data = build_kmers(seq_data, k, full_kmers, low_var_threshold,
             sparse, dtype).data

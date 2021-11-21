@@ -3,6 +3,7 @@
 from mlr_kgenomvir.data.seq_collections import SeqCollection
 from mlr_kgenomvir.data.build_cv_data import build_load_save_cv_data
 from mlr_kgenomvir.models.model_evaluation import perform_mlr_cv
+from mlr_kgenomvir.models.model_evaluation import extract_mlr_scores
 from mlr_kgenomvir.models.model_evaluation import compile_score_names
 from mlr_kgenomvir.models.model_evaluation import make_clf_score_dataframes
 from mlr_kgenomvir.models.model_evaluation import average_scores_dataframes
@@ -59,11 +60,11 @@ if __name__ == "__main__":
     with open(config_file, "r") as cf:
         config.read_file(cf)
 
-    # virus
-    virus_name = config.get("virus", "virus_code")
+    # job code
+    job_code = config.get("job", "job_code")
 
     # io
-    seq_file = config.get("io", "seq_file")
+    seq_file = config.get("io", "seq_file", fallback=None)
     outdir = config.get("io", "outdir")
 
     # seq_rep
@@ -129,17 +130,21 @@ if __name__ == "__main__":
             fallback=False)
     saveResults = config.getboolean("settings", "save_results",
             fallback=True)
+    saveFinalResults = config.getboolean("settings",
+            "save_final_results", fallback=True)
     plotResults = config.getboolean("settings", "plot_results",
             fallback=True)
+    plotResultsOnly = config.getboolean("settings",
+            "plot_results_only", fallback=False)
     randomState = config.getint("settings", "random_state",
-            fallback=42)
+            fallback=None)
 
     if evalType not in ["CF", "FF"]:
         raise ValueError(
                 "evalType argument have to be CF or FF value")
 
     # simulations
-    sim_iter = config.getint("simulation", "iterations")
+    sim_iter = config.get("simulation", "iterations")
     init_seq = config.get("simulation", "init_seq") # file/none
     init_seq_size = config.getint("simulation", "init_seq_size",
             fallback=None)
@@ -239,16 +244,15 @@ if __name__ == "__main__":
     str_lambda = format(_lambda, '.0e') if _lambda not in list(
             range(0, 10)) else str(_lambda)
 
-    # OutDir folder
-    ###############
-    outdir = os.path.join(outdir,"{}/{}".format(virus_name, 
-        evalType))
-    makedirs(outdir, mode=0o700, exist_ok=True)
-
     # SimDir folder
     ###############
-    sim_dir = os.path.join(outdir,"simulations")
+    sim_dir = os.path.join(outdir,"sim_data")
     makedirs(sim_dir, mode=0o700, exist_ok=True)
+
+    # OutDir folder
+    ###############
+    outdir = os.path.join(outdir,"{}".format(evalType))
+    makedirs(outdir, mode=0o700, exist_ok=True)
 
     # Coverage values to evaluate
     #############################
@@ -288,91 +292,126 @@ if __name__ == "__main__":
     # SantaSim object for sequence simulation using SANTA
     sim = SantaSim()
 
+    # Set sim iteration bounderies (useful when simulated
+    # data are deterministic)
+    iter_bounds = str_to_list(sim_iter, cast=int)
+ 
+    if len(iter_bounds) == 2:
+        # Config ex: iterations = 1, 10
+        sim_iter_start = iter_bounds[0]
+        sim_iter_end = iter_bounds[1] + 1
+
+    elif len(iter_bounds) == 1:
+        # Config ex: iterations = 5
+        sim_iter_start = 1
+        sim_iter_end = iter_bounds[0] + 1
+
     # Collect score results of all simulation iterations in
     # sim_scores
     sim_scores = []
 
-    for iteration in range(1, sim_iter + 1):
+    for iteration in range(sim_iter_start, sim_iter_end):
         if verbose:
             print("\nEvaluating Simulation {}\n".format(iteration),
                     flush=True)
 
+        # Update random state for each iteration to generate 
+        # different datasets
+        if isinstance(randomState, (int)):
+            randomState *= iteration
+
         # Construct names for simulation and classes files
-        ##################################################
         sim_name = "Sim{}".format(iteration)
 
-        # Simulate viral population based on input fasta
-        ################################################
-        sim_file, cls_file = sim.sim_labeled_dataset(
-                [initseq],
-                evo_params,
-                sim_dir,
-                sim_name,
-                init_gen_count_frac=init_gen_count_fraction,
-                nb_classes=nb_classes,
-                class_pop_size=class_pop_size,
-                class_pop_size_std=class_pop_size_std,
-                class_pop_size_min=class_pop_size_min,
-                class_pop_size_max=class_pop_size_max,
-                load_data=loadData, 
-                random_state=randomState,
-                verbose=verbose)
+        if not plotResultsOnly:
+            ## Simulate viral population based on input fasta
+            #################################################
+            sim_file, cls_file = sim.sim_labeled_dataset(
+                    [initseq],
+                    evo_params,
+                    sim_dir,
+                    sim_name,
+                    init_gen_count_frac=init_gen_count_fraction,
+                    nb_classes=nb_classes,
+                    class_pop_size=class_pop_size,
+                    class_pop_size_std=class_pop_size_std,
+                    class_pop_size_min=class_pop_size_min,
+                    class_pop_size_max=class_pop_size_max,
+                    load_data=loadData, 
+                    random_state=randomState,
+                    verbose=verbose)
 
         for ind, coverage in enumerate(coverages):
             coverage_str = coverages_str[ind]
-            if verbose:
-                print("\n{}. Evaluating coverage: {}".format(
-                    ind+1, coverage_str), flush=True)
 
             # Construct prefix for output files
-            ###################################
             tag_fg = "FSZ{}_FCV{}_FCL{}_".format(str(fragmentSize),
-            coverage_str, str(fragmentCount))
+                    coverage_str, str(fragmentCount))
 
             prefix_out = os.path.join(outdir,
-                    "{}_{}_{}_K{}{}_{}".format(virus_name, 
+                    "{}_{}_{}_K{}{}_{}".format(job_code, 
                         evalType, sim_name, tag_kf, klen, tag_fg))
 
-            ## Generate training and testing data
-            ####################################
-            tt_data = build_load_save_cv_data(
-                    sim_file,
-                    cls_file,
-                    prefix_out,
-                    eval_type=evalType,
-                    k=klen,
-                    full_kmers=fullKmers,
-                    low_var_threshold=lowVarThreshold,
-                    fragment_size=fragmentSize,
-                    fragment_cov=coverage,
-                    fragment_count=fragmentCount,
-                    n_splits=cv_folds,
-                    test_size=testSize,
-                    load_data=loadData,
-                    save_data=saveData,
-                    random_state=randomState,
-                    verbose=verbose,
-                    **sampling_args)
+            if not plotResultsOnly:
+                if verbose:
+                    print("\n{}. Evaluating coverage: {}\n".format(
+                        ind+1, coverage_str), flush=True)
 
-            cv_data = tt_data["data"]
+                ## Generate training and testing data
+                ####################################
+                tt_data = build_load_save_cv_data(
+                        sim_file,
+                        cls_file,
+                        prefix_out,
+                        eval_type=evalType,
+                        k=klen,
+                        full_kmers=fullKmers,
+                        low_var_threshold=lowVarThreshold,
+                        fragment_size=fragmentSize,
+                        fragment_cov=coverage,
+                        fragment_count=fragmentCount,
+                        n_splits=cv_folds,
+                        test_size=testSize,
+                        load_data=loadData,
+                        save_data=saveData,
+                        random_state=randomState,
+                        verbose=verbose,
+                        **sampling_args)
 
-            if verbose:
-                print("X_train descriptive stats:\n{}".format(
-                    get_stats(cv_data["X_train"])))
+                cv_data = tt_data["data"]
 
-            ## Train and compute performance of classifiers
-            ###############################################
-            mlr_scores = parallel(delayed(perform_mlr_cv)(
-                clone(mlr), clf_name, clf_penalty, _lambda, 
-                cv_data, prefix_out, metric=eval_metric, 
-                average_metric=avrg_metric, n_jobs=n_cvJobs,
-                load_model=loadModels, save_model=saveModels,
-                load_result=loadResults, save_result=saveResults,
-                verbose=verbose, random_state=randomState)
-                for clf_name, clf_penalty in zip(clf_names,
-                    clf_penalties))
+                if verbose:
+                    print("X_train descriptive stats:\n{}".format(
+                        get_stats(cv_data["X_train"])))
 
-            # Add the scores of current klen to clf_scores
+                ## Train and compute performance of classifiers
+                ###############################################
+                mlr_scores = parallel(delayed(perform_mlr_cv)(
+                    clone(mlr), clf_name, clf_penalty, _lambda, 
+                    cv_data, prefix_out, metric=eval_metric, 
+                    average_metric=avrg_metric, n_jobs=n_cvJobs,
+                    load_model=loadModels, save_model=saveModels,
+                    load_result=loadResults, save_result=saveResults,
+                    verbose=verbose, random_state=randomState)
+                    for clf_name, clf_penalty in zip(clf_names,
+                        clf_penalties))
+
+            else:
+                if verbose:
+                    print("\n{}. Loading  coverage: {}\n".format(
+                        ind+1, coverage_str), flush=True)
+
+                ## Extract MLR result performance from files 
+                ############################################
+                mlr_scores = parallel(delayed(extract_mlr_scores)(
+                    clf_name, clf_penalty, _lambda, prefix_out,
+                    cv_folds, learning_rate=_learning_rate,
+                    metric=eval_metric, average_metric=avrg_metric,
+                    verbose=verbose)
+                    for clf_name, clf_penalty in zip(clf_names,
+                        clf_penalties))
+
+            # Add the scores of current coverage to clf_scores
             for i, clf_name in enumerate(clf_names):
                 clf_scores[clf_name][coverage_str] = mlr_scores[i]
 
@@ -382,21 +421,20 @@ if __name__ == "__main__":
 
         sim_scores.append(scores_dfs)
 
-
         ## Save and Plot iteration results
         ##################################
         outFileSim = os.path.join(outdir,
                 "{}_{}_{}_K{}{}_{}_{}{}_A{}_COVERAGES_{}_{}".\
-                        format(virus_name, evalType, sim_name,
+                        format(job_code, evalType, sim_name,
                             tag_kf, klen, tag_cov, mlr_name, str_lr,
                             str_lambda, avrg_metric, eval_metric))
 
-        if saveResults:
+        if saveFinalResults or plotResultsOnly:
             write_log(scores_dfs, config, outFileSim+".log")
             with open(outFileSim+".jb", 'wb') as fh:
                 dump(scores_dfs, fh)
 
-        if plotResults:
+        if plotResults or plotResultsOnly:
             plot_cv_figure(scores_dfs, score_names, coverages_str, 
                     "Coverage", outFileSim)
 
@@ -408,16 +446,16 @@ if __name__ == "__main__":
     ##############################
     outFile = os.path.join(outdir,
             "{}_{}_Sim_K{}{}_{}_{}{}_A{}_COVERAGES_{}_{}".format(
-                virus_name, evalType, tag_kf, klen, tag_cov,
+                job_code, evalType, tag_kf, klen, tag_cov,
                 mlr_name, str_lr, str_lambda, avrg_metric, 
                 eval_metric))
 
-    if saveResults:
+    if saveFinalResults or plotResultsOnly:
         write_log(sim_scores_dfs, config, outFile+".log")
         with open(outFile+".jb", 'wb') as fh:
             dump(sim_scores_dfs, fh)
 
-    if plotResults:
+    if plotResults or plotResultsOnly:
         plot_cv_figure(sim_scores_dfs, score_names, coverages_str, 
                 "Coverage", outFile)
 
