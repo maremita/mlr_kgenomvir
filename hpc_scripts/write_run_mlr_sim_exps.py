@@ -8,7 +8,7 @@ from itertools import product
 from datetime import datetime
 import argparse
 import configparser
-
+from collections import defaultdict
 
 __author__ = "amine"
 
@@ -29,32 +29,30 @@ def main(args):
     account = job_config.get("slurm", "account")
     mail = job_config.get("slurm", "mail_user")
 
-    cpu_task = job_config.get("resources", "cpus_per_task")
-    gres = job_config.get("resources", "gres")
-    mem = job_config.get("resources", "mem")
-    time = job_config.get("resources", "time")
-    output_folder = job_config.get("resources", "output_folder")
+    cpu_task = job_config.get("main_settings", "cpus_per_task")
+    gres = job_config.get("main_settings", "gres")
+    mem = job_config.get("main_settings", "mem")
+    time = job_config.get("main_settings", "time")
+    output_folder = job_config.get("main_settings", "output_folder")
+    plot_only = job_config.getboolean("main_settings", "plot_only")
 
-    # Set job name if not defined
     if not job_name:
         now = datetime.now()
         str_time = now.strftime("%m%d")
         job_name = "MLR"+str_time
 
-    print("Runing {} experiments\n".format(job_name))
-
     #
     k_list = str_to_list(
-            job_config.get("distr_evals", "k_list"), cast=str)
+            job_config.get("main_evals", "k_list"), cast=str)
     eval_types = str_to_list(
-            job_config.get("distr_evals", "eval_types"), cast=str)
+            job_config.get("main_evals", "eval_types"), cast=str)
     penalties = str_to_list(
-            job_config.get("distr_evals", "penalties"), cast=str)
+            job_config.get("main_evals", "penalties"), cast=str)
     fragment_sizes = str_to_list(
-            job_config.get("distr_evals", "fragment_sizes"),
+            job_config.get("main_evals", "fragment_sizes"),
             cast=str)
     iter_bounds = str_to_list(
-            job_config.get("distr_evals", "sim_iterations"),
+            job_config.get("main_evals", "sim_iterations"),
             cast=int)
 
     # coverages
@@ -94,7 +92,7 @@ def main(args):
         exp_key = "rep_recombination"
         #
         job_config.set(exp_section, "rep_dual_infection",
-                job_config.get("distr_evals", "rep_dual_infection"))
+                job_config.get("main_evals", "rep_dual_infection"))
         job_config.set(exp_section, "evo_to_assess", exp_key)
 
     # imbalanced dataset
@@ -161,8 +159,8 @@ def main(args):
                 " imbdata |\n imbsamp | klens | lambdas | lrs"\
                 " | lowvars | nbclasses]\n")
 
-    exp_values = str_to_list(
-            job_config.get("distr_evals", exp_code), cast=str)
+    exp_dist_evals = job_config.get("main_evals", exp_code)
+    exp_values = str_to_list(exp_dist_evals, cast=str)
     job_config.set("job", "job_code", exp_mini)
 
     # Output folders
@@ -176,9 +174,6 @@ def main(args):
     # Job log folder
     log_dir = os.path.join(output_folder, "job_logs")
     makedirs(log_dir, mode=0o700, exist_ok=True)
-
-    s_error = os.path.join(log_dir, "%j.err")
-    s_output = os.path.join(log_dir, "%j.out")
 
     # Config files directory
     config_dir = os.path.join(output_folder, "job_confs")
@@ -215,83 +210,185 @@ def main(args):
     else:
         job_config.set('classifier', 'device', "cpu")
 
-    #
-    for eval_type in eval_types:
-        if eval_type in ["CF", "FF"]:
-            fgt_sizes = fragment_sizes
-        else:
-            fgt_sizes = [0] # not important here
+    # Run computations
+    if not plot_only:
+        print("Running {} experiments\n".format(job_name))
+        #
+        nb_runs = defaultdict(lambda: 0)
+        for eval_type in eval_types:
+            if eval_type in ["CF", "FF"]:
+                fgt_sizes = fragment_sizes
+            else:
+                fgt_sizes = [0] # not important here
 
-        for frgt_size, k, pen, iteration in \
-                product(fgt_sizes, k_list, penalties, sim_iterations):
-            for exp_value in exp_values:
+            for frgt_size, k, pen, iteration in \
+                    product(fgt_sizes, k_list, penalties,
+                            sim_iterations):
+
+                kef = "{}_{}_{}".format(k, eval_type, frgt_size)
+                if kef not in nb_runs:
+                    nb_runs[kef] = 0
+
+                for exp_value in exp_values:
+                    #
+                    if exp_code == "klens":
+                        k = exp_value
+                    else:
+                        job_config.set('seq_rep', 'k', str(k))
+                    #
+                    exp_name = "S{}{}{}_K{}{}{}_{}".format(
+                            iteration,
+                            exp_mini,
+                            exp_value,
+                            k,
+                            eval_type,
+                            frgt_size,
+                            pen)
+
+                    # Update config parser
+                    # set the the value of the parameter to evaluate
+                    job_config.set(exp_section, exp_key, str(exp_value))
+                    job_config.set('simulation', 'iterations',
+                            "{},{}".format(iteration, iteration))
+                    job_config.set('evaluation', 'eval_type', eval_type)
+                    job_config.set('seq_rep', 
+                            'fragment_size', str(frgt_size))
+                    job_config.set('classifier', 'penalty', pen)
+
+                    measure_files, prefix_mfile = get_measure_file_names(
+                            job_config,
+                            exp_section,
+                            exp_key,
+                            iteration)
+
+                    dont_run = all(
+                            [os.path.isfile(f) for f in measure_files])
+
+                    if not dont_run:
+                        # write config on a file
+                        config_file = os.path.join(
+                                config_dir, "{}_{}.ini".format(
+                                    os.path.basename(prefix_mfile), job_name))
+
+                        with open (config_file, "w") as fh:
+                            job_config.write(fh)
+
+                        s_error = os.path.join(log_dir,
+                                "%j_" + os.path.basename(prefix_mfile) + ".err")
+                        s_output = os.path.join(log_dir,
+                                "%j_" + os.path.basename(prefix_mfile) + ".out")
+
+                        # submit job with this config file
+                        cmd = "sbatch --account={} --mail-user={} "\
+                                "--cpus-per-task={} --job-name={} "\
+                                "--time={} "\
+                                "--export=PROGRAM={},CONF_file={} "\
+                                "--mem={} {}--error={} --output={} "\
+                                "submit_mlr_exp.sh".format(
+                                        account,
+                                        mail,
+                                        cpu_task,
+                                        exp_name, 
+                                        time,
+                                        program, config_file, 
+                                        mem,
+                                        set_gres, 
+                                        s_error,
+                                        s_output)
+
+                        print(prefix_mfile)
+                        print(cmd, end="\n")
+
+                        # Uncomment to launch the job
+                        #os.system(cmd)
+                        print("\n")
+                        nb_runs[kef] += 1
+
+        print("Number of runs:")
+        total = 0
+        for run_type in nb_runs:
+            print("{}: {}".format(run_type, nb_runs[run_type]))
+            total += nb_runs[run_type]
+        print("Total: {}".format(total))
+    #
+    ## If all computations are done
+    ## Aggregate results and generate plots
+    else:
+        print("Plotting {} experiments\n".format(job_name))
+        for eval_type in eval_types:
+            if eval_type in ["CF", "FF"]:
+                fgt_sizes = fragment_sizes
+            else:
+                fgt_sizes = [0] # not important here
+
+            for frgt_size, k in product(fgt_sizes, k_list):
+
+                kef = "{}_{}_{}".format(k, eval_type, frgt_size)
                 #
-                if exp_code == "klens":
-                    k = exp_value
-                else:
+                if exp_code != "klens":
                     job_config.set('seq_rep', 'k', str(k))
                 #
-                exp_name = "S{}{}{}_K{}{}{}_{}".format(
-                        iteration,
+                exp_name = "{}_K{}_{}{}".format(
                         exp_mini,
-                        exp_value,
                         k,
                         eval_type,
-                        frgt_size,
-                        pen)
+                        frgt_size)
 
                 # Update config parser
-                # set the the value of the parameter to evaluate
-                job_config.set(exp_section, exp_key, str(exp_value))
-                job_config.set('simulation', 'iterations',
-                        "{},{}".format(iteration, iteration))
-                job_config.set('evaluation', 'eval_type', eval_type)
-                job_config.set('seq_rep', 
+                # set the the values of the parameter to evaluate
+                job_config.set(exp_section, exp_key, exp_dist_evals)
+                job_config.set('simulation',
+                        'iterations', str(sim_iter_end-1))
+                job_config.set('evaluation',
+                        'eval_type', eval_type)
+                job_config.set('seq_rep',
                         'fragment_size', str(frgt_size))
-                job_config.set('classifier', 'penalty', pen)
+                job_config.set('classifier', 
+                        'penalty', ", ".join(penalties))
+ 
+                job_config.set('settings', 'load_data', "True")
+                job_config.set('settings', 'load_models', "True")
+                job_config.set('settings', 'load_results', "True")
+                job_config.set('settings', 'save_final_results', "True")
+                job_config.set('settings', 'plot_results', "True")
 
-                measure_files, prefix_mfile = get_measure_file_names(
-                        job_config,
-                        exp_section,
-                        exp_key,
-                        iteration)
+                # write config on a file
+                config_file = os.path.join(
+                        config_dir, "{}_{}.ini".format(
+                            exp_name, job_name))
+                
+                print(config_file)
 
-                dont_run = all(
-                        [os.path.isfile(f) for f in measure_files])
+                with open (config_file, "w") as fh:
+                    job_config.write(fh)
 
-                if not dont_run:
-                    # write config on a file
-                    config_file = os.path.join(
-                            config_dir, "{}_{}.ini".format(
-                                exp_name, job_name))
+                s_error = os.path.join(log_dir,
+                        "%j_" + exp_name + ".err")
+                s_output = os.path.join(log_dir,
+                        "%j_" + exp_name + ".out")
 
-                    with open (config_file, "w") as fh:
-                        job_config.write(fh)
+                # submit job with this config file
+                cmd = "sbatch --account={} --mail-user={} "\
+                        "--cpus-per-task={} --job-name={} "\
+                        "--time={} "\
+                        "--export=PROGRAM={},CONF_file={} "\
+                        "--mem={} {}--error={} --output={} "\
+                        "submit_mlr_exp.sh".format(
+                                account,
+                                mail,
+                                cpu_task,
+                                exp_name, 
+                                time,
+                                program, config_file, 
+                                mem,
+                                set_gres, 
+                                s_error,
+                                s_output)
 
-                    # submit job with this config file
-                    cmd = "sbatch --account={} --mail-user={} "\
-                            "--cpus-per-task={} --job-name={} "\
-                            "--time={} "\
-                            "--export=PROGRAM={},CONF_file={} "\
-                            "--mem={} {}--error={} --output={} "\
-                            "submit_mlr_exp.sh".format(
-                                    account,
-                                    mail,
-                                    cpu_task,
-                                    exp_name, 
-                                    time,
-                                    program, config_file, 
-                                    mem,
-                                    set_gres, 
-                                    s_error,
-                                    s_output)
+                print(cmd, end="\n")
 
-                    print(prefix_mfile)
-                    print(cmd, end="\n")
-
-                    ## Uncomment to launch the job
-                    #os.system(cmd)
-                    print("\n")
+                # Uncomment to launch the job
+                #os.system(cmd)
 
 def get_measure_file_names(
         config,
@@ -338,6 +435,13 @@ def get_measure_file_names(
 
     elif exp_key == "nb_classes":
         sim_name += "_CL{}".format(sim_value)
+
+    # Check lowVarThreshold
+    # #####################
+    if lowVarThreshold == "None":
+        lowVarThreshold = None
+    else:
+        lowVarThreshold = float(lowVarThreshold)
 
     # Generate prefix of output files
     # ###############################
@@ -432,4 +536,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     main(args)
+
+    print("\nFin normale du programme")
 
