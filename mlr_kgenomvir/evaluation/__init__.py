@@ -10,4 +10,4 @@
 
 __author__ = "Amine Remita"
 
-__all__ = ["pytorch_mlr"]
+__all__ = ["mlr_evaluation"]

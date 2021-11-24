@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-from mlr_kgenomvir.models.model_evaluation import extract_mlr_scores
-from mlr_kgenomvir.models.model_evaluation import compile_score_names
-from mlr_kgenomvir.models.model_evaluation import make_clf_score_dataframes
-from mlr_kgenomvir.models.model_evaluation import plot_cv_figure
+from mlr_kgenomvir.evaluation.mlr_evaluation import extract_mlr_scores
+from mlr_kgenomvir.evaluation.mlr_evaluation import compile_score_names
+from mlr_kgenomvir.evaluation.mlr_evaluation import make_clf_score_dataframes
+from mlr_kgenomvir.evaluation.mlr_evaluation import plot_cv_figure
 from mlr_kgenomvir.utils import str_to_list
 
 import sys

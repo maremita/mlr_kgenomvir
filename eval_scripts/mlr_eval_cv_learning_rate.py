@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 from mlr_kgenomvir.data.build_cv_data import build_load_save_cv_data
-from mlr_kgenomvir.models.model_evaluation import perform_mlr_cv
-from mlr_kgenomvir.models.model_evaluation import compile_score_names
-from mlr_kgenomvir.models.model_evaluation import make_clf_score_dataframes
-from mlr_kgenomvir.models.model_evaluation import plot_cv_figure
+from mlr_kgenomvir.evaluation.mlr_evaluation import perform_mlr_cv
+from mlr_kgenomvir.evaluation.mlr_evaluation import compile_score_names
+from mlr_kgenomvir.evaluation.mlr_evaluation import make_clf_score_dataframes
+from mlr_kgenomvir.evaluation.mlr_evaluation import plot_cv_figure
 from mlr_kgenomvir.utils import str_to_list
 from mlr_kgenomvir.utils import get_stats
 from mlr_kgenomvir.utils import write_log
