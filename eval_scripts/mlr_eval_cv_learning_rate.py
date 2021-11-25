@@ -157,8 +157,9 @@ if __name__ == "__main__":
     outdir = os.path.join(outdir,"{}/{}".format(virus_name, evalType))
     makedirs(outdir, mode=0o700, exist_ok=True)
 
-    prefix_out = os.path.join(outdir, "{}_{}_K{}{}_{}".format(
-        virus_name, evalType, tag_kf, klen, tag_fg))
+    prefix_out = os.path.join(outdir, 
+            "{}_{}_K{}{}_{}cv{}_".format(virus_name,
+                evalType, tag_kf, klen, tag_fg, cv_folds))
 
     ## Learning rate values to evaluate
     ###################################
@@ -244,9 +245,9 @@ if __name__ == "__main__":
             range(0, 10)) else str(_lambda)
 
     outFile = os.path.join(outdir,
-            "{}_{}_K{}{}_{}{}_LR{}to{}_A{}_LRS_{}_{}".format(
-                virus_name, evalType, tag_kf, klen, tag_fg, mlr_name,
-                lrs_str[0], lrs_str[-1], str_lambda, 
+            "{}_{}_K{}{}_{}cv{}_{}_LR{}to{}_A{}_LRS_{}_{}".format(
+                virus_name, evalType, tag_kf, klen, tag_fg, cv_folds,
+                mlr_name, lrs_str[0], lrs_str[-1], str_lambda, 
                 avrg_metric, eval_metric))
 
     if saveResults:

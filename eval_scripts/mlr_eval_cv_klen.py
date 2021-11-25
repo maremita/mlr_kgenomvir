@@ -200,8 +200,9 @@ if __name__ == "__main__":
 
         # Construct prefix for output files
         ###################################
-        prefix_out = os.path.join(outdir, "{}_{}_K{}{}_{}".format(
-            virus_name, evalType, tag_kf, klen_str, tag_fg))
+        prefix_out = os.path.join(outdir,
+                "{}_{}_K{}{}_{}cv{}_".format(virus_name,
+                    evalType, tag_kf, klen_str, tag_fg, cv_folds))
 
         ## Generate training and testing data
         ####################################
@@ -261,10 +262,10 @@ if __name__ == "__main__":
             range(0, 10)) else str(_lambda)
 
     outFile = os.path.join(outdir,
-            "{}_{}_K{}{}to{}_{}{}{}_A{}_KLENGTHS_{}_{}".format(
+            "{}_{}_K{}{}to{}_{}cv{}_{}{}_A{}_KLENGTHS_{}_{}".format(
                 virus_name, evalType, tag_kf, klen_list_str[0],
-                klen_list_str[-1], tag_fg, mlr_name, str_lr, str_lambda,
-                avrg_metric, eval_metric))
+                klen_list_str[-1], tag_fg, cv_folds, mlr_name, str_lr,
+                str_lambda, avrg_metric, eval_metric))
 
     if saveResults:
         write_log(scores_dfs, config, outFile+".log")

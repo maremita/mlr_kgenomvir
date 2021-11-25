@@ -340,8 +340,9 @@ if __name__ == "__main__":
 
             # Construct prefix for output files
             prefix_out = os.path.join(outdir, 
-                    "{}_{}_{}_K{}{}_{}".format(job_code,
-                        evalType, sim_name, tag_kf, klen, tag_fg))
+                    "{}_{}_{}_K{}{}_{}cv{}_".format(job_code,
+                        evalType, sim_name, tag_kf, klen,
+                        tag_fg, cv_folds))
 
             if not plotResultsOnly:
                 if verbose:
@@ -431,10 +432,12 @@ if __name__ == "__main__":
         ## Save and Plot iteration results
         ##################################
         outFileSim = os.path.join(outdir,
-                "{}_{}_Sim{}_CL{}to{}_K{}{}_{}{}{}_A{}_CLASSNBS_{}_{}".format(
-                    job_code, evalType, iteration, class_nbs_str[0],
-                    class_nbs_str[-1], tag_kf, klen, tag_fg, mlr_name,
-                    str_lr, str_lambda, avrg_metric, eval_metric))
+                "{}_{}_Sim{}_CL{}to{}_K{}{}_{}cv{}_{}{}_A{}"\
+                        "_CLASSNBS_{}_{}".format(job_code, evalType,
+                            iteration, class_nbs_str[0],
+                            class_nbs_str[-1], tag_kf, klen, tag_fg,
+                            cv_folds, mlr_name, str_lr, str_lambda,
+                            avrg_metric, eval_metric))
 
         if saveFinalResults or plotResultsOnly:
             write_log(scores_dfs, config, outFileSim+".log")
@@ -452,10 +455,11 @@ if __name__ == "__main__":
     ## Save and Plot final results
     ##############################
     outFile = os.path.join(outdir,
-                "{}_{}_Sim_CL{}to{}_K{}{}_{}{}{}_A{}_CLASSNBS_{}_{}".\
-                        format(job_code, evalType, class_nbs_str[0],
+                "{}_{}_Sim_CL{}to{}_K{}{}_{}cv{}_{}{}_A{}"\
+                        "_CLASSNBS_{}_{}".format(job_code, evalType,
+                            class_nbs_str[0],
                             class_nbs_str[-1], tag_kf, klen, tag_fg,
-                            mlr_name, str_lr, str_lambda,
+                            cv_folds, mlr_name, str_lr, str_lambda,
                             avrg_metric, eval_metric))
 
     if saveFinalResults or plotResultsOnly:

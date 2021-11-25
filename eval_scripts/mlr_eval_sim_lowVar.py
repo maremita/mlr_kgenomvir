@@ -349,9 +349,9 @@ if __name__ == "__main__":
 
             # Construct prefix for output files
             prefix_out = os.path.join(outdir, 
-                    "{}_{}_{}_K{}{}_{}V{}_".format(job_code,
+                    "{}_{}_{}_K{}{}_{}V{}_cv{}_".format(job_code,
                         evalType, sim_name, tag_kf, klen, tag_fg,
-                        threshold_str))
+                        threshold_str, cv_folds))
 
             if not plotResultsOnly:
                 if verbose:
@@ -426,10 +426,11 @@ if __name__ == "__main__":
         ## Save and Plot iteration results
         ##################################
         outFileSim = os.path.join(outdir,
-                "{}_{}_{}_K{}{}_V{}to{}_{}{}{}_A{}_LOWVARS_{}_{}".\
-                        format(job_code, evalType, sim_name, tag_kf,
-                            klen, thresholds_list_str[0], 
-                            thresholds_list_str[-1], tag_fg,
+                "{}_{}_{}_K{}{}_{}V{}to{}_cv{}_{}{}_A{}"\
+                        "_LOWVARS_{}_{}".format(job_code, evalType, 
+                            sim_name, tag_kf, klen, tag_fg, 
+                            thresholds_list_str[0], 
+                            thresholds_list_str[-1], cv_folds,
                             mlr_name, str_lr, str_lambda, 
                             avrg_metric, eval_metric))
 
@@ -450,11 +451,13 @@ if __name__ == "__main__":
     ## Save and Plot final results
     ##############################
     outFile = os.path.join(outdir,
-            "{}_{}_Sim_K{}{}_V{}to{}_{}{}{}_A{}_LOWVARS_{}_{}".format(
-                job_code, evalType, tag_kf, klen, 
-                thresholds_list_str[0], thresholds_list_str[-1],
-                tag_fg, mlr_name, str_lr, str_lambda, 
-                avrg_metric, eval_metric))
+            "{}_{}_Sim_K{}{}_{}V{}to{}_cv{}_{}{}_A{}"\
+                    "_LOWVARS_{}_{}".format(job_code, evalType, 
+                        tag_kf, klen, tag_fg,  
+                        thresholds_list_str[0],
+                        thresholds_list_str[-1], cv_folds,
+                        mlr_name, str_lr, str_lambda, 
+                        avrg_metric, eval_metric))
 
     if saveFinalResults or plotResultsOnly:
         write_log(sim_scores_dfs, config, outFile+".log")

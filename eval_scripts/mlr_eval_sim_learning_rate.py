@@ -329,8 +329,9 @@ if __name__ == "__main__":
 
         # Construct prefix for output files
         prefix_out = os.path.join(outdir,
-                "{}_{}_{}_K{}{}_{}".format(job_code,
-                    evalType, sim_name, tag_kf, klen, tag_fg))
+                "{}_{}_{}_K{}{}_{}cv{}_".format(job_code,
+                    evalType, sim_name, tag_kf, klen,
+                    tag_fg, cv_folds))
 
         if not plotResultsOnly:
             # Simulate viral population based on input fasta
@@ -423,9 +424,9 @@ if __name__ == "__main__":
         ## Save and Plot iteration results
         ##################################
         outFileSim = os.path.join(outdir,
-                "{}_{}_{}_K{}{}_{}{}_LR{}to{}_A{}_LRS_{}_{}".\
+                "{}_{}_{}_K{}{}_{}cv{}_{}_LR{}to{}_A{}_LRS_{}_{}".\
                         format(job_code, evalType, sim_name,
-                            tag_kf, klen, tag_fg, mlr_name,
+                            tag_kf, klen, tag_fg, cv_folds, mlr_name,
                             lrs_str[0], lrs_str[-1], str_lambda,
                             avrg_metric, eval_metric))
 
@@ -445,8 +446,8 @@ if __name__ == "__main__":
     ## Save and Plot results
     ########################
     outFile = os.path.join(outdir,
-            "{}_{}_Sim_K{}{}_{}{}_LR{}to{}_A{}_LRS_{}_{}".format(
-                job_code, evalType, tag_kf, klen, tag_fg,
+            "{}_{}_Sim_K{}{}_{}cv{}_{}_LR{}to{}_A{}_LRS_{}_{}".format(
+                job_code, evalType, tag_kf, klen, tag_fg, cv_folds,
                 mlr_name, lrs_str[0], lrs_str[-1], str_lambda,
                 avrg_metric, eval_metric))
 

@@ -188,8 +188,9 @@ if __name__ == "__main__":
         tag_fg = "FSZ{}_FCV{}_FCL{}_".format(str(fragmentSize), 
                 coverage_str, str(fragmentCount))
 
-        prefix_out = os.path.join(outdir, "{}_{}_K{}{}_{}".format(
-            virus_name, evalType, tag_kf, klen, tag_fg))
+        prefix_out = os.path.join(outdir,
+                "{}_{}_K{}{}_{}cv{}_".format(virus_name,
+                    evalType, tag_kf, klen, tag_fg, cv_folds))
 
         ## Generate training and testing data
         ####################################
@@ -254,9 +255,9 @@ if __name__ == "__main__":
             coverages_str[0], coverages_str[-1], str(fragmentCount))
 
     outFile = os.path.join(outdir,
-            "{}_{}_K{}{}_{}_{}{}_A{}_COVERAGES_{}_{}".format(
+            "{}_{}_K{}{}_{}_cv{}_{}{}_A{}_COVERAGES_{}_{}".format(
                 virus_name, evalType, tag_kf, klen, tag_cov,
-                mlr_name, str_lr, str_lambda,
+                cv_folds, mlr_name, str_lr, str_lambda,
                 avrg_metric, eval_metric))
 
     if saveResults:

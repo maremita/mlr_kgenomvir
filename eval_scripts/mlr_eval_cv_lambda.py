@@ -158,8 +158,9 @@ if __name__ == "__main__":
     outdir = os.path.join(outdir,"{}/{}".format(virus_name, evalType))
     makedirs(outdir, mode=0o700, exist_ok=True)
 
-    prefix_out = os.path.join(outdir, "{}_{}_K{}{}_{}".format(
-        virus_name, evalType, tag_kf, klen, tag_fg))
+    prefix_out = os.path.join(outdir,
+            "{}_{}_K{}{}_{}cv{}_".format(virus_name,
+                evalType, tag_kf, klen, tag_fg, cv_folds))
 
     ## Lambda values to evaluate
     ############################
@@ -252,10 +253,10 @@ if __name__ == "__main__":
         str_lr = "_LR"+str_lr
 
     outFile = os.path.join(outdir,
-            "{}_{}_K{}{}_{}{}{}_A{}to{}_LAMBDAS_{}_{}".format(
+            "{}_{}_K{}{}_{}cv{}_{}{}_A{}to{}_LAMBDAS_{}_{}".format(
                 virus_name, evalType, tag_kf, klen, tag_fg,
-                mlr_name, str_lr, lambdas_str[0], lambdas_str[-1],
-                avrg_metric, eval_metric))
+                cv_folds, mlr_name, str_lr, lambdas_str[0],
+                lambdas_str[-1], avrg_metric, eval_metric))
 
     if saveResults:
         write_log(scores_dfs, config, outFile+".log")

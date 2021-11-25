@@ -183,7 +183,7 @@ def build_load_save_cv_data(
     ## Generate the names of files
     ##############################
 
-    Xy_cvFile = prefix+"Xy_cv{}_data.npz".format(n_splits)
+    Xy_cvFile = prefix+"Xy_data.npz"
 
     if os.path.isfile(Xy_cvFile) and load_data:
         if verbose:
