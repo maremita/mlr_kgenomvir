@@ -78,12 +78,12 @@ def str_to_list(chaine, sep=",", cast=None):
 
 
 def write_log(results, args, out_file):
-    pd.option_context('display.max_rows', None,
-            'display.max_columns', None)
 
     with open(out_file, "wt") as f:
-        f.write("Final results\n##############\n\n")
-        pprint(results, stream=f)
+        with pd.option_context('display.max_rows', None, 
+                'display.max_columns', None):
+            f.write("Final results\n##############\n\n")
+            pprint(results, stream=f)
 
         f.write("\nProgram arguments\n################\n\n")
         args.write(f)
