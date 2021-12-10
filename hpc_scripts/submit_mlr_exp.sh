@@ -14,9 +14,12 @@ pip install --no-index --upgrade pip
 
 # if any package is not available within the cluster environment
 # download it using pip before running the jobs
-# pip download --no-deps phylodm 
+# pip download --no-deps phylodm
+# or
+# pip wheel --no-deps phylodm
 
-pip install --no-index ../../phylodm-1.3.1.tar.gz
+#pip install --no-index ../../phylodm-1.3.1.tar.gz
+pip install --no-index ../../phylodm-1.3.1-cp38-cp38-linux_x86_64.whl
 
 # Install mlr_kgenomvir
 # This assumes that this script is run from:

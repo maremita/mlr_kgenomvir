@@ -113,8 +113,10 @@ if __name__ == "__main__":
         _device = config.get("classifier", "device")
 
     # settings
-    n_mainJobs = config.getint("settings", "n_main_jobs")
-    n_cvJobs = config.getint("settings", "n_cv_jobs")
+    n_mainJobs = config.getint("settings", "n_main_jobs",
+            fallback=1)
+    n_cvJobs = config.getint("settings", "n_cv_jobs",
+            fallback=1)
     verbose = config.getint("settings", "verbose",
             fallback=0)
     loadData = config.getboolean("settings", "load_data",
@@ -186,9 +188,9 @@ if __name__ == "__main__":
 
     evo_params = dict()
     evo_params["populationSize"] = config.get("simulation", 
-            "init_pop_size", fallback="100")
+            "init_pop_size", fallback="1000")
     evo_params["generationCount"] = config.get("simulation", 
-            "generation_count", fallback="100")
+            "generation_count", fallback="1000")
     evo_params["fitnessFreq"] = config.get("simulation",
             "fitness_freq", fallback="0.5")
     evo_params["repDualInfection"] = config.get("simulation",
@@ -196,13 +198,13 @@ if __name__ == "__main__":
     evo_params["repRecombination"] = config.get("simulation", 
             "rep_recombination", fallback="0.0")
     evo_params["mutationRate"] = config.get("simulation", 
-            "mutation_rate", fallback="0.5")
+            "mutation_rate", fallback="0.01")
     evo_params["transitionBias"] = config.get("simulation", 
-            "transition_bias", fallback="5.0")
+            "transition_bias", fallback="2.0")
     evo_params["indelModelNB"] = config.get("simulation", 
             "indel_model_nb", fallback=None)
     evo_params["indelProb"] = config.get("simulation", 
-            "indel_prob", fallback=None)
+            "indel_prob", fallback="0.0")
     # ..................................................
 
     evo_param_names = {
@@ -313,7 +315,10 @@ if __name__ == "__main__":
                 evo_values_str = [str(e) if e in list(range(0, 10))\
                         else format(e, '.0e') for e in evo_values]
         else:
-            evo_params[evo_param] = cast_fun(evo_params[evo_param])
+            if str(evo_params[evo_param]).lower() == "none":
+                evo_params[evo_param] = None
+            else:
+                evo_params[evo_param] = cast_fun(evo_params[evo_param])
 
     # Validate indelModelNB values
     if evo_to_assess == "indelModelNB":

@@ -292,6 +292,11 @@ class SantaSim():
             indelProb=None,
             random_state=None):
 
+        #
+        if not bool(repRecombination) \
+                or str(repRecombination).lower() == "none":
+            repRecombination = 0.0
+
         configFile = "{}.xml".format(outputFile)
 
         if isinstance(sequence, (int)):
@@ -355,16 +360,21 @@ class SantaSim():
 
         #
         replication = et.SubElement(simulation, "replicator")
-        replication_type = et.SubElement(
-                replication, "recombinantReplicator")
 
-        replication_type_dualInfection = et.SubElement(
-                replication_type, "dualInfectionProbability")
-        replication_type_dualInfection.text = str(repDualInfection)
+        if bool(repDualInfection):
+            replication_type = et.SubElement(
+                    replication, "recombinantReplicator")
 
-        replication_type_recombination = et.SubElement(
-                replication_type, "recombinationProbability")
-        replication_type_recombination.text = str(repRecombination)
+            replication_type_dualInfection = et.SubElement(
+                    replication_type, "dualInfectionProbability")
+            replication_type_dualInfection.text = str(repDualInfection)
+
+            replication_type_recombination = et.SubElement(
+                    replication_type, "recombinationProbability")
+            replication_type_recombination.text = str(repRecombination)
+        else:
+            replication_type = et.SubElement(
+                    replication, "clonalReplicator")
 
         #
         mutation = et.SubElement(simulation, "mutator")
@@ -378,7 +388,7 @@ class SantaSim():
                 mutation_type, "transitionBias")
         mutation_type_bias.text = str(transitionBias)
 
-        if indelModelNB is not None and indelProb is not None:
+        if bool(indelModelNB) and bool(indelProb):
             indel_model_NB = et.SubElement(
                     mutation_type, "indelmodel")
             indel_model_NB.set("model", "NB")

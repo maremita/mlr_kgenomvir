@@ -115,8 +115,10 @@ if __name__ == "__main__":
         _device = config.get("classifier", "device")
 
     # settings
-    n_mainJobs = config.getint("settings", "n_main_jobs")
-    n_cvJobs = config.getint("settings", "n_cv_jobs")
+    n_mainJobs = config.getint("settings", "n_main_jobs",
+            fallback=1)
+    n_cvJobs = config.getint("settings", "n_cv_jobs",
+            fallback=1)
     verbose = config.getint("settings", "verbose",
             fallback=0)
     loadData = config.getboolean("settings", "load_data",

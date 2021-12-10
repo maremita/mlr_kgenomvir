@@ -14,6 +14,12 @@ such us `phylodm` in Compute Canada environment
 pip download --no-deps phylodm
 ```
 
+Or download and build a wheel archive
+
+```sh
+pip wheel --no-deps phylodm
+```
+
 Downlowd and clone `mlr_kgenomvir` package
 
 ```sh
@@ -40,12 +46,19 @@ Complete and update information about account and resources in `eval_config_exp1
 
 Update the parameters of the evaluations in `eval_config_exp1.ini`
 
-Uncomment `os.system(cmd)` (lines 306 and 389) in `write_run_mlr_sim_exps.py`
 
 Run the script `write_run_mlr_sim_exps.py`
 
 ```sh
-python write_run_mlr_sim_exps.py -c eval_config_exp1.ini -t coverages
+python write_run_mlr_sim_exps.py -c eval_config_exp1.ini -t coverages --submit
+
+```
+
+Once all jobs have completed successfully, you can collect and plot the results 
+by submitting a new job with the command
+
+```sh
+python write_run_mlr_sim_exps.py -c eval_config_exp1.ini -t coverages --plot-only --submit
 ```
 
 For more options:

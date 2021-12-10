@@ -24,17 +24,23 @@ def main(args):
     # Get config values from ini files
     job_config = read_config_file(args.job_config)
     exp_code = args.job_type
-    job_name = args.job_name
     plot_only = args.plot_only
+    submit_job = args.submit
 
     account = job_config.get("slurm", "account")
     mail = job_config.get("slurm", "mail_user")
-
-    cpu_task = job_config.get("main_settings", "cpus_per_task")
+    
+    job_name = job_config.get("main_settings", "job_name",
+            fallback=None)
+    cpu_task = job_config.get("main_settings", "cpus_per_task",
+            fallback=1)
     gres = job_config.get("main_settings", "gres")
     mem = job_config.get("main_settings", "mem")
     time = job_config.get("main_settings", "time")
     output_folder = job_config.get("main_settings", "output_folder")
+
+    if str(job_name).lower() in ["auto", "none"]:
+        job_name = None
 
     if not job_name:
         now = datetime.now()
@@ -92,7 +98,8 @@ def main(args):
         exp_key = "rep_recombination"
         #
         job_config.set(exp_section, "rep_dual_infection",
-                job_config.get("main_evals", "rep_dual_infection"))
+                job_config.get("main_evals", "rep_dual_infection", 
+                    fallback=0.01))
         job_config.set(exp_section, "evo_to_assess", exp_key)
 
     # imbalanced dataset
@@ -215,7 +222,7 @@ def main(args):
 
     # Run computations
     if not plot_only:
-        print("Running {} experiments\n".format(job_name))
+        print("Running {} {} experiments\n".format(job_name, exp_code))
 
         nb_runs = defaultdict(lambda: 0)
         for eval_type in eval_types:
@@ -300,12 +307,12 @@ def main(args):
                                         s_output)
 
                         print(prefix_mfile)
-                        print(cmd, end="\n")
 
-                        # Uncomment to launch the job
-                        #os.system(cmd)
-                        print("\n")
-                        nb_runs[kef] += 1
+                        if submit_job:
+                            print(cmd, end="\n")
+                            os.system(cmd)
+                            print("\n")
+                            nb_runs[kef] += 1
 
         print("Number of runs:")
         total = 0
@@ -317,7 +324,7 @@ def main(args):
     ## If all computations are done
     ## Aggregate results and generate plots
     else:
-        print("Plotting {} experiments\n".format(job_name))
+        print("Plotting {} {} experiments\n".format(job_name, exp_code))
 
         for eval_type in eval_types:
             if eval_type in ["CF", "FF"]:
@@ -383,10 +390,10 @@ def main(args):
                                 s_error,
                                 s_output)
 
-                print(cmd, end="\n")
 
-                # Uncomment to launch the job
-                #os.system(cmd)
+                if submit_job:
+                    print(cmd, end="\n")
+                    os.system(cmd)
 
 def get_measure_file_names(
         config,
@@ -459,13 +466,14 @@ def get_measure_file_names(
 
     prefix_out = os.path.join(
             outdir,
-            "{}_{}_{}_K{}{}_{}".format(
+            "{}_{}_{}_K{}{}_{}cv{}_".format(
                 job_code,
                 evalType,
                 sim_name, 
                 tag_kf,
                 klen,
-                tag_fg))
+                tag_fg, 
+                cv_folds))
 
     # Other appends prefix_out
     if exp_key == "low_var_threshold":
@@ -528,9 +536,9 @@ if __name__ == '__main__':
             required=True)
     parser.add_argument('-t', '--job-type', type=str,
             required=True)
-    parser.add_argument('-n', '--job-name', type=str,
-            required=False)
     parser.add_argument('--plot-only', dest='plot_only',
+            action='store_true')
+    parser.add_argument('--submit', dest='submit',
             action='store_true')
 
     args = parser.parse_args()
