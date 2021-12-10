@@ -87,6 +87,9 @@ def main(args):
         exp_section = "simulation"
         exp_key = "indel_prob"
         #
+        job_config.set(exp_section, "indel_model_nb",
+                job_config.get("main_evals", "indel_model_nb", 
+                    fallback="0.4 1"))
         job_config.set(exp_section, "evo_to_assess", exp_key)
 
     # recombinations
@@ -228,8 +231,15 @@ def main(args):
         for eval_type in eval_types:
             if eval_type in ["CF", "FF"]:
                 fgt_sizes = fragment_sizes
+                # Comment this if you have enough memeory
+                job_config.set('settings', 'n_cv_jobs', '1')
+                # Comment this if data numpy array is less than 4GB
+                job_config.set('settings', 'save_data', False)
             else:
                 fgt_sizes = [0] # not important here
+                job_config.set('settings', 'n_cv_jobs',
+                        '${evaluation:cv_folds}')
+                job_config.set('settings', 'save_data', True)
 
             for frgt_size, k, pen, iteration in \
                     product(fgt_sizes, k_list, penalties,
